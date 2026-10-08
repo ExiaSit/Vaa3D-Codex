@@ -71,7 +71,7 @@ typedef struct
     int      width; 
     int      height;
     uint8   *array;   // Array of pixel values lexicographically ordered on (y,x,c).
-  } Image;            //    Pixel (0,0) is the lower left-hand corner of an image.
+  } Image;            //    Pixel (0,0) is the upper left-hand corner of an image.
 
   /*  The macros and routines below serve to illustrate how pixel information is organized
         in the 1-dimensional image "array".  Generally, for any extensive image manipulation

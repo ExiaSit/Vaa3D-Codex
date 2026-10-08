@@ -1,5 +1,30 @@
 # 100310 SWC 与 TIFF 坐标排查
 
+## local-010 更新（2026-10-08 21:57:35 +08:00）
+
+以下排查描述的是 local-009 及之前的行为。local-010 已按用户要求修改软件：
+普通 TIFF 的 RGBA 读取路径显式使用 `ORIENTATION_TOPLEFT`，不再将通常的
+顶行优先 TIFF 翻转为底行优先；对应写入器的 Orientation 标记也改为 TOPLEFT，
+避免保存再打开发生翻转。全栈、单切片读取及 Neuron Annotator 对应源码同步更新。
+16 位灰度的扫描行读取路径保持原样。
+
+现在请使用原始 `/home/pzy/100310.swc`。此前生成的
+`100310.vaa3d_yflip.swc` 仅适合旧版本，不适合更新后的普通 TIFF 窗口。
+原始图像与 SWC 均未修改。
+
+验证：`python tests/tiff_orientation_test.py /data/disk/C6.0/img/image_100310_0000.tif`
+通过。测试直接编译实际 `mg_image_lib.cpp`，对 8 位灰度、16 位灰度、RGB 合成栈
+以及真实 100310 图像逐像素比较 Python 读取、Vaa3D 读取、保存、再读取结果，
+并检查输出 TIFF 的 Orientation 标记为 1。完整 Debug 构建通过。
+程序重启后加载原始 TIFF 与原始 SWC，日志确认三维窗口 Ready；未人工检查叠加画面。
+
+兼容范围：使用 libtiff 的方向标记解释；非 TOPLEFT 的显式方向标签仍可能触发
+方向归一化，不保证等同于 tifffile 忽略方向标签的原始行排列。
+旧版按翻转后的图像绘制的 SWC 不会自动迁移。MYLIB、TeraFly 的独立读取器未改动；
+界面中用户主动启用的 Y 轴翻转设置仍保留，本机 `b_yaxis_up=false`。
+
+## local-009 历史排查
+
 排查时间：2026-10-08 21:37:15 +08:00（Asia/Shanghai）。
 
 ## 结论

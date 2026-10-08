@@ -342,7 +342,8 @@ static void read_directory(TIFF *tif, Image *image, const char *routine)   //  U
       uint32 *in;
       uint8  *out;
 
-      if (TIFFReadRGBAImage(tif,width,height,raster,0) == 0)
+      // Match TIFF scanline / tifffile coordinates; the RGBA default is bottom-up.
+      if (TIFFReadRGBAImageOriented(tif,width,height,raster,ORIENTATION_TOPLEFT,0) == 0)
         error("read of tif failed in read_directory()", NULL);
 
       in = raster;
@@ -451,7 +452,8 @@ void Write_Tiff(TIFF *tif, Image *a_image)
   TIFFSetField(tif,TIFFTAG_YRESOLUTION,(float) 72.);
   TIFFSetField(tif,TIFFTAG_RESOLUTIONUNIT,(uint16) 2);
   TIFFSetField(tif,TIFFTAG_PLANARCONFIG,(uint16) 1);
-  TIFFSetField(tif,TIFFTAG_ORIENTATION,(uint16) 4);
+  // Arrays now use top-left coordinates, including TIFF save/reload.
+  TIFFSetField(tif,TIFFTAG_ORIENTATION,(uint16) ORIENTATION_TOPLEFT);
 
   if (a_image->kind == GREY16)
     { TIFFSetField(tif,TIFFTAG_BITSPERSAMPLE,(uint16) 16);

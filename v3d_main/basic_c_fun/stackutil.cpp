@@ -3378,7 +3378,8 @@ int read_tif_slice(TIFF *tif, unsigned char * pointer_first_page, V3DLONG width,
 		uint32 *in;
 		uint8  *out;
 
-		if (TIFFReadRGBAImage(tif,width,height,raster,0) == 0)
+		// Match TIFF scanline / tifffile coordinates; the RGBA default is bottom-up.
+		if (TIFFReadRGBAImageOriented(tif,width,height,raster,ORIENTATION_TOPLEFT,0) == 0)
 		{
 			fprintf(stderr, "read of tif failed in read_tif_slice()");
 			if (raster) {delete []raster; raster=0;}
