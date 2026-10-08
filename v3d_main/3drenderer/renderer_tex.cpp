@@ -442,7 +442,15 @@ void Renderer_gl1::paint()
 	// significantly because this paint routine spends most of its time redrawing the volume.
 	// since the volume can't change while the user is drawing a curve, we skip all of the rendering
 	// steps except drawing the track while the track is being displayed.
-    if (!sShowTrack || highlightedEndNodeChanged)
+    // QOpenGLWidget invalidates its framebuffer between frames by default.
+    // Qt 5 must redraw the scene while tracking; retaining only the stroke
+    // would present an undefined background instead of the volume.
+#if defined(USE_Qt5)
+    const bool redrawScene = true;
+#else
+    const bool redrawScene = !sShowTrack || highlightedEndNodeChanged;
+#endif
+    if (redrawScene)
     {
 		glClearStencil(0);
 		glClearDepth(1);
@@ -476,7 +484,7 @@ void Renderer_gl1::paint()
 
 	prepareVol();
 
-    if (!sShowTrack  || highlightedEndNodeChanged)
+    if (redrawScene)
 	{
 		if (!b_renderTextureLast) {
 			renderVol();
