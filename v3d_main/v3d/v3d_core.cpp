@@ -5836,7 +5836,11 @@ V3DLONG XFormWidget::estimateRoughAmountUsedMemory()
 	{
 		for (i=0;i<listlen;i++)
 		{
-			nbytes += list[i]->getImageData()->getTotalBytes();
+			// Closed TeraFly windows can remain in the MDI list after cleanData()
+			// has released their image. They no longer contribute any image memory.
+			My4DImage *image = list[i] ? list[i]->getImageData() : 0;
+			if (image)
+				nbytes += image->getTotalBytes();
 		}
 	}
 
