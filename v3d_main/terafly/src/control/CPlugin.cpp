@@ -229,10 +229,12 @@ bool tf::PluginInterface::setSWC(NeuronTree & nt, int resolution)
 
         // push content to viewer
         CViewer::getCurrent()->loadAnnotations();
+        return true;
     }
     catch (tf::RuntimeException & e)
     {
         v3d_msg(QString("Exception catched in TeraFly plugin API: ") + e.what(), true);
+        return false;
     }
 }
 

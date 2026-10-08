@@ -84,6 +84,9 @@ class Renderer_gl1 : public Renderer
 	friend class V3dr_colormapDialog;
 
 public:
+    bool reconnectSphereVisible = false;
+    XYZ reconnectSphereCenter, reconnectSphereRadii;
+
 	Renderer_gl1(void* widget);
 	virtual ~Renderer_gl1();
 	virtual const int class_version() {return 1;}

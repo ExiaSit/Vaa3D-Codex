@@ -1,11 +1,19 @@
 
 #include "renderer_gl1.h"
+#include "v3dr_glwidget.h"
+#include "../control/SphereReconnect.h"
+#include <QDialogButtonBox>
+#include <QFormLayout>
+#include <QLabel>
+#include <QUndoCommand>
 
 #include "PAnoToolBar.h"
 #include "PMain.h"
 #include "../control/CViewer.h"
 
 using namespace terafly;
+
+namespace { bool sphereHistoryReady(const QUndoCommand *command); }
 
 PAnoToolBar* PAnoToolBar::uniqueInstance = 0;
 
@@ -49,6 +57,13 @@ PAnoToolBar::PAnoToolBar(QWidget *parent) : QWidget(parent)
     connect(buttonRedo, SIGNAL(clicked()), this, SLOT(buttonRedoClicked()));
     toolBar->insertWidget(0, buttonRedo);
     toolBar->addSeparator();
+
+    QToolButton *sphereButton = new QToolButton(toolBar);
+    sphereButton->setObjectName("sphereReconnectButton");
+    sphereButton->setText(QString::fromUtf8("球内\n重连"));
+    sphereButton->setToolTip(QString::fromUtf8("画一个三维球，将球内线段重连到中心点"));
+    connect(sphereButton, SIGNAL(clicked()), this, SLOT(startSphereReconnect()));
+    toolBar->addWidget(sphereButton);
 
     // add new buttons
     buttonMarkerCreate = new QToolButton();
@@ -380,6 +395,7 @@ void PAnoToolBar::buttonUndoClicked()
     CViewer* expl = CViewer::getCurrent();
     if(expl && expl->undoStack.canUndo())
     {
+        if (!sphereHistoryReady(expl->undoStack.command(expl->undoStack.index()-1))) return;
         expl->undoStack.undo();
         if(!expl->undoStack.canUndo())
             buttonUndo->setEnabled(false);
@@ -394,6 +410,7 @@ void PAnoToolBar::buttonRedoClicked()
     CViewer* expl = CViewer::getCurrent();
     if(expl && expl->undoStack.canRedo())
     {
+        if (!sphereHistoryReady(expl->undoStack.command(expl->undoStack.index()))) return;
         expl->undoStack.redo();
         if(!expl->undoStack.canRedo())
             buttonRedo->setEnabled(false);
@@ -406,6 +423,7 @@ void PAnoToolBar::buttonRedoClicked()
 ***********************************************************************************/
 bool PAnoToolBar::eventFilter(QObject *object, QEvent *event)
 {
+    if (sphereEvent(object, event)) return true;
     if(event->type() == 6)
     {
         QKeyEvent *KeyEvent = (QKeyEvent*)event;
@@ -425,6 +443,7 @@ bool PAnoToolBar::eventFilter(QObject *object, QEvent *event)
 ***********************************************************************************/
 void PAnoToolBar::releaseTools()
 {
+    cancelSphere();
     /**/tf::debug(tf::LEV3, 0, __itm__current__function__);
 
     if(buttonMarkerCreate->isChecked())
@@ -467,3 +486,167 @@ void PAnoToolBar::autosaveAnnotations()
 }
 
 
+
+namespace {
+QString sphereTreeSignature(const NeuronTree &tree)
+{
+    QHash<V3DLONG, NeuronSWC> nodes;
+    for(const NeuronSWC &n:tree.listNeuron) nodes.insert(n.n,n);
+    auto point=[](const NeuronSWC &n) {return QString::number(n.x,'g',9)+","+QString::number(n.y,'g',9)+","+QString::number(n.z,'g',9);};
+    QStringList rows;
+    for(const NeuronSWC &n:tree.listNeuron)
+        rows << point(n)+":"+QString::number(n.type)+":"+QString::number(n.r,'g',9)+":"+
+                (nodes.contains(n.pn)?point(nodes[n.pn]):QString("root"));
+    rows.sort();return rows.join(";");
+}
+class SphereReconnectCommand : public QUndoCommand
+{
+    NeuronTree before, after;
+    QString expected;
+    bool first=true;
+    void restore(NeuronTree tree) {
+        // The host also has a separate tracing history. Do not overwrite later edits.
+        if(!first && sphereTreeSignature(terafly::PluginInterface::getSWC())!=expected) {
+            QMessageBox::warning(0,QString::fromUtf8("无法撤销/重做"),QString::fromUtf8("标注已有其他修改，请先撤销这些修改，再撤销球内重连。"));return;
+        }
+        if(!terafly::PluginInterface::setSWC(tree)) return;
+        first=false;
+        expected=sphereTreeSignature(terafly::PluginInterface::getSWC());
+        terafly::PMain::getInstance()->annotationsChanged();
+    }
+public:
+    bool canRestore() const {return first || sphereTreeSignature(terafly::PluginInterface::getSWC())==expected;}
+    SphereReconnectCommand(const NeuronTree &a,const NeuronTree &b):before(a),after(b) {setText(QString::fromUtf8("球内重连到中心"));}
+    void redo() override {restore(after);}
+    void undo() override {restore(before);}
+};
+bool sphereHistoryReady(const QUndoCommand *command)
+{
+    const auto sphere=dynamic_cast<const SphereReconnectCommand*>(command);
+    if(!sphere || sphere->canRestore()) return true;
+    QMessageBox::warning(0,QString::fromUtf8("无法撤销/重做"),QString::fromUtf8("标注已有其他修改，请先撤销这些修改，再撤销球内重连。"));
+    return false;
+}
+}
+
+void PAnoToolBar::startSphereReconnect()
+{
+    CViewer *v=CViewer::getCurrent();
+    if(!v || !v->isReady()) return;
+    releaseTools();
+    auto r=static_cast<Renderer_gl1*>(v->getGLWidget()->getRenderer());
+    r->endSelectMode();
+    sphereView=v->getGLWidget();
+    sphereDialog=new QDialog(this,Qt::Tool);
+    sphereDialog->setObjectName("sphereReconnectDialog");
+    sphereDialog->setWindowTitle(QString::fromUtf8("球内重连到中心"));
+    auto layout=new QVBoxLayout(sphereDialog);
+    auto help=new QLabel(QString::fromUtf8("在图像上按住右键选球心，拖动确定半径。\n左键可旋转检查；可调整下方坐标和半径。\n单位：最高分辨率体素坐标（从 0 开始）。"));
+    layout->addWidget(help);
+    auto form=new QFormLayout;layout->addLayout(form);
+    const char *names[]={"sphereX","sphereY","sphereZ","sphereRadius"};
+    QStringList labels;labels<<"X"<<"Y"<<"Z"<<QString::fromUtf8("半径");
+    double values[]={v->coord2global<double>(r->imageX/2.,iim::horizontal,false),
+                     v->coord2global<double>(r->imageY/2.,iim::vertical,false),
+                     v->coord2global<double>(r->imageZ/2.,iim::depth,false),20.};
+    for(int i=0;i<4;++i) {
+        sphereValues[i]=new QDoubleSpinBox(sphereDialog);
+        sphereValues[i]->setObjectName(names[i]);sphereValues[i]->setDecimals(2);
+        sphereValues[i]->setRange(i==3?0.01:0,1e9);sphereValues[i]->setValue(values[i]);
+        form->addRow(labels[i],sphereValues[i]);
+        connect(sphereValues[i],static_cast<void(QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged),this,[this](double){updateSpherePreview();});
+    }
+    auto buttons=new QDialogButtonBox(QDialogButtonBox::Apply|QDialogButtonBox::Cancel,sphereDialog);
+    buttons->button(QDialogButtonBox::Apply)->setText(QString::fromUtf8("应用重连"));
+    buttons->button(QDialogButtonBox::Apply)->setObjectName("applySphereReconnect");
+    buttons->button(QDialogButtonBox::Cancel)->setText(QString::fromUtf8("取消"));
+    layout->addWidget(buttons);
+    connect(buttons->button(QDialogButtonBox::Apply),&QPushButton::clicked,this,[this](){applySphere();});
+    connect(buttons,&QDialogButtonBox::rejected,sphereDialog,&QDialog::reject);
+    connect(sphereDialog.data(),&QDialog::finished,this,[this](int){cancelSphere();});
+    updateSpherePreview();sphereDialog->show();
+}
+
+void PAnoToolBar::cancelSphere()
+{
+    sphereDragging=false;
+    if(sphereView) {
+        auto w=static_cast<V3dR_GLWidget*>(sphereView.data());
+        if(w->getRenderer()) static_cast<Renderer_gl1*>(w->getRenderer())->reconnectSphereVisible=false;
+        w->update();
+    }
+    sphereView=0;
+    if(sphereDialog) {
+        QDialog *dialog=sphereDialog.data();sphereDialog=0;
+        dialog->hide();dialog->deleteLater();
+    }
+}
+
+void PAnoToolBar::updateSpherePreview()
+{
+    CViewer *v=CViewer::getCurrent();
+    if(!sphereDialog || !v || sphereView!=v->getGLWidget()) return;
+    auto r=static_cast<Renderer_gl1*>(v->getGLWidget()->getRenderer());
+    double x=sphereValues[0]->value(),y=sphereValues[1]->value(),z=sphereValues[2]->value(),radius=sphereValues[3]->value();
+    XYZ c(v->coord2local<double>(x,iim::horizontal,false),v->coord2local<double>(y,iim::vertical,false),v->coord2local<double>(z,iim::depth,false));
+    r->reconnectSphereCenter=c;
+    r->reconnectSphereRadii=XYZ(v->coord2local<double>(x+radius,iim::horizontal,false)-c.x,
+                              v->coord2local<double>(y+radius,iim::vertical,false)-c.y,
+                              v->coord2local<double>(z+radius,iim::depth,false)-c.z);
+    r->reconnectSphereVisible=true;v->getGLWidget()->update();
+}
+
+bool PAnoToolBar::sphereEvent(QObject *object,QEvent *event)
+{
+    if(!sphereDialog) return false;
+    CViewer *v=CViewer::getCurrent();
+    if(!v || sphereView!=v->getGLWidget()) {cancelSphere();return false;}
+    if(event->type()==QEvent::KeyPress && static_cast<QKeyEvent*>(event)->key()==Qt::Key_Escape) {
+        cancelSphere();return true;
+    }
+    if(object!=sphereView.data()) return false;
+    if(event->type()==QEvent::Wheel) return true; // keep the selected resolution fixed during preview
+    if(event->type()!=QEvent::MouseButtonPress && event->type()!=QEvent::MouseMove && event->type()!=QEvent::MouseButtonRelease) return false;
+    QMouseEvent *e=static_cast<QMouseEvent*>(event);
+    auto w=v->getGLWidget();auto r=static_cast<Renderer_gl1*>(w->getRenderer());
+    if(event->type()==QEvent::MouseButtonPress && e->button()==Qt::RightButton) {
+        w->makeCurrent();
+        Renderer_gl1::MarkerPos pos;pos.x=e->x();pos.y=e->y();pos.drawn=false;
+        for(int i=0;i<4;++i)pos.view[i]=r->viewport[i];
+        for(int i=0;i<16;++i){pos.P[i]=r->projectionMatrix[i];pos.MV[i]=r->markerViewMatrix[i];}
+        XYZ c=r->getCenterOfMarkerPos(pos);
+        if(!std::isfinite(c.x)||!std::isfinite(c.y)||!std::isfinite(c.z)||c.x<0||c.y<0||c.z<0) return true;
+        double sx,sy;
+        if(!gluProject(c.x,c.y,c.z,pos.MV,pos.P,pos.view,&sx,&sy,&sphereDepth)) return true;
+        sphereValues[0]->setValue(v->coord2global<double>(c.x,iim::horizontal,false));
+        sphereValues[1]->setValue(v->coord2global<double>(c.y,iim::vertical,false));
+        sphereValues[2]->setValue(v->coord2global<double>(c.z,iim::depth,false));
+        sphereDragging=true;return true;
+    }
+    if(event->type()==QEvent::MouseMove && sphereDragging) {
+        double x,y,z;
+        if(gluUnProject(e->x(),r->viewport[3]-e->y(),sphereDepth,r->markerViewMatrix,r->projectionMatrix,r->viewport,&x,&y,&z)) {
+            x=v->coord2global<double>(x,iim::horizontal,false)-sphereValues[0]->value();
+            y=v->coord2global<double>(y,iim::vertical,false)-sphereValues[1]->value();
+            z=v->coord2global<double>(z,iim::depth,false)-sphereValues[2]->value();
+            sphereValues[3]->setValue(qMax(0.01,sqrt(x*x+y*y+z*z)));
+        }
+        return true;
+    }
+    if(event->type()==QEvent::MouseButtonRelease && e->button()==Qt::RightButton) {sphereDragging=false;return true;}
+    return false;
+}
+
+void PAnoToolBar::applySphere()
+{
+    CViewer *v=CViewer::getCurrent();
+    if(!sphereDialog || !v || !v->isReady() || sphereView!=v->getGLWidget()) return;
+    NeuronTree before=PluginInterface::getSWC(),after;
+    QString error;int removed,connections;
+    if(!reconnectSphere(before,sphereValues[0]->value(),sphereValues[1]->value(),sphereValues[2]->value(),sphereValues[3]->value(),after,error,removed,connections)) {
+        QMessageBox::warning(sphereDialog,QString::fromUtf8("无法重连"),error);return;
+    }
+    v->undoStack.push(new SphereReconnectCommand(before,after));
+    buttonUndo->setEnabled(true);buttonRedo->setEnabled(false);
+    cancelSphere();
+}

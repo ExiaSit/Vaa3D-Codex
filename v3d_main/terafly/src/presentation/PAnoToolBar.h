@@ -2,6 +2,9 @@
 #define PANOTOOLBAR_H
 
 #include "theader.h"
+#include <QPointer>
+#include <QDoubleSpinBox>
+#include <QDialog>
 
 #include "../control/CPlugin.h"
 
@@ -11,6 +14,15 @@ class terafly::PAnoToolBar : public QWidget
 
     private:
 
+        QPointer<QDialog> sphereDialog;
+        QDoubleSpinBox *sphereValues[4] = {0,0,0,0};
+        bool sphereDragging = false;
+        double sphereDepth = 0;
+        QPointer<QWidget> sphereView;
+        void updateSpherePreview();
+        void cancelSphere();
+        bool sphereEvent(QObject*, QEvent*);
+        void applySphere();
         QToolBar* toolBar;                      //tool bar with buttons
         QToolButton *buttonMarkerCreate;        //button1
         QToolButton *buttonMarkerCreate2;       //button1
@@ -92,6 +104,7 @@ class terafly::PAnoToolBar : public QWidget
         void buttonMarkerRoiDeleteChecked(bool checked);
         void buttonMarkerRoiViewChecked(bool checked);
 		void buttonFragmenTraceChecked(bool checked); // MK, Dec 2018
+        void startSphereReconnect();
         void buttonUndoClicked();
         void buttonRedoClicked();
 

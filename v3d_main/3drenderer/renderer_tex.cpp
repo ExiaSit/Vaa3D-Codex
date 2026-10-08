@@ -630,6 +630,29 @@ void Renderer_gl1::paint()
 		blendTrack();
 	}
 
+    // Sphere editing overlay: separate from annotation data and picking.
+    if (reconnectSphereVisible && !b_selecting) {
+        glPushAttrib(GL_ALL_ATTRIB_BITS);
+        glDisable(GL_DEPTH_TEST); glDisable(GL_LIGHTING); glDisable(GL_BLEND);
+        glDisable(GL_TEXTURE_2D); glDisable(GL_TEXTURE_3D);
+        for (int i=0;i<6;++i) glDisable(GL_CLIP_PLANE0+i);
+        glMatrixMode(GL_MODELVIEW); glPushMatrix(); setMarkerSpace();
+        glColor3f(1.0f,0.8f,0.0f); glLineWidth(2);
+        for (int plane=0;plane<3;++plane) {
+            glBegin(GL_LINE_LOOP);
+            for(int i=0;i<96;++i) {
+                double a=i*6.283185307179586/96, c=cos(a), s=sin(a);
+                glVertex3d(reconnectSphereCenter.x+(plane==2?0:c*reconnectSphereRadii.x),
+                           reconnectSphereCenter.y+(plane==1?0:(plane==2?c:s)*reconnectSphereRadii.y),
+                           reconnectSphereCenter.z+(plane==0?0:s*reconnectSphereRadii.z));
+            }
+            glEnd();
+        }
+        glPointSize(7); glBegin(GL_POINTS);
+        glVertex3d(reconnectSphereCenter.x,reconnectSphereCenter.y,reconnectSphereCenter.z);
+        glEnd();glPopMatrix();glPopAttrib();
+    }
+
     //always draw some background text by PHC 20151117
 
     if (1)
