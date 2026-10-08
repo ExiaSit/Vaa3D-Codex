@@ -63,6 +63,8 @@
 #endif
 
 
+#include "../../../basic_c_fun/FastFileDialog.h"
+
 using namespace terafly;
 using namespace iim;
 
@@ -1382,20 +1384,8 @@ void PMain::openImage(std::string path /*= ""*/)
             std::string title = sender() == openTeraFlyVolumeAction ?
                         "Select any folder with prefix \"RES\"" :
                         "Select the folder containing all image files";
-            #ifdef _USE_QT_DIALOGS
-            QFileDialog dialog(0);
-            dialog.setFileMode(QFileDialog::Directory);
-            dialog.setViewMode(QFileDialog::Detail);
-            dialog.setWindowFlags(Qt::WindowStaysOnTopHint);
-            dialog.setWindowTitle(title.c_str());
-            dialog.setDirectory(CSettings::instance()->getVolumePathLRU().c_str());
-            if(dialog.exec())
-                path = dialog.directory().absolutePath().toStdString().c_str();
-            #else
-            path = QFileDialog::getExistingDirectory(this, title.c_str(),
-                                                     CSettings::instance()->getVolumePathLRU().c_str(),
-                                                     QFileDialog::ShowDirsOnly).toStdString();
-            #endif
+            path = FastFileDialog::getExistingDirectory(this, title.c_str(),
+                         CSettings::instance()->getVolumePathLRU().c_str()).toStdString();
 
             /**/tf::debug(tf::LEV3, strprintf("selected path = %s", path.c_str()).c_str(), __itm__current__function__);
 
@@ -1425,20 +1415,8 @@ void PMain::openImage(std::string path /*= ""*/)
             else if(sender() == openUnstitchedImageAction)
                 filter = "Image descriptor files (*.xml)" ;
 
-            #ifdef _USE_QT_DIALOGS
-            QFileDialog dialog(0);
-            dialog.setFileMode(QFileDialog::ExistingFile);
-            dialog.setNameFilter(tr(filter.c_str()));
-            dialog.setViewMode(QFileDialog::Detail);
-            dialog.setWindowFlags(Qt::WindowStaysOnTopHint);
-            dialog.setWindowTitle("Select file");
-            dialog.setDirectory(CSettings::instance()->getVolumePathLRU().c_str());
-            if(dialog.exec())
-                path = dialog.directory().absolutePath().toStdString();
-
-            #else
-            path = QFileDialog::getOpenFileName(this, "Select file", QString(), tr(filter.c_str())).toStdString();
-            #endif
+            path = FastFileDialog::getOpenFileName(this, "Select file",
+                         CSettings::instance()->getVolumePathLRU().c_str(), tr(filter.c_str())).toStdString();
             /**/tf::debug(tf::LEV3, strprintf("selected path = %s", path.c_str()).c_str(), __itm__current__function__);
 
             if (path.empty())
@@ -1649,24 +1627,8 @@ void PMain::loadAnnotations()
 //            QDir dir(CImport::instance()->getPath().c_str());
 //            dir.cdUp();
 
-            #ifdef _USE_QT_DIALOGS
-            QString path = "";
-            QFileDialog dialog(cur_win->window3D);
-            dialog.setFileMode(QFileDialog::ExistingFile);
-            dialog.setViewMode(QFileDialog::Detail);
-            dialog.setWindowFlags(Qt::WindowStaysOnTopHint);
-            dialog.setWindowTitle("Open annotation file");
-            dialog.setNameFilter(tr("annotation files (*.ano)"));
-            dialog.setDirectory(dir.absolutePath().toStdString().c_str());
-            if(dialog.exec())
-               if(!dialog.selectedFiles().empty())
-                   path = dialog.selectedFiles().front();
-
-            #else
-            //tf::setWidgetOnTop(cur_win->window3D, false);
-            QString path = QFileDialog::getOpenFileName(cur_win->window3D, "Open annotation file", dir.absolutePath(), tr("annotation files (*.ano)"));
-            //tf::setWidgetOnTop(cur_win->window3D, true);
-            #endif
+            QString path = FastFileDialog::getOpenFileName(cur_win->window3D, "Open annotation file",
+                            dir.absolutePath(), tr("annotation files (*.ano)"));
 
             if(!path.isEmpty())
             {

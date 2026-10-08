@@ -35,6 +35,8 @@
 #include "../control/CSettings.h"
 #include "QProgressSender.h"
 
+#include "../../../basic_c_fun/FastFileDialog.h"
+
 using namespace terafly;
 
 PConverter* PConverter::uniqueInstance = NULL;
@@ -471,20 +473,7 @@ void PConverter::inDirButtonClicked()
 {
     /**/tf::debug(tf::LEV1, 0, __itm__current__function__);
 
-    #ifdef _USE_QT_DIALOGS
-    QString path;
-    QFileDialog dialog(0);
-    dialog.setFileMode(QFileDialog::Directory);
-    dialog.setViewMode(QFileDialog::Detail);
-    dialog.setWindowFlags(Qt::WindowStaysOnTopHint);
-    dialog.setWindowTitle("Select volume's folder");
-    dialog.setDirectory(CSettings::instance()->getVCInputPath().c_str());
-    if(dialog.exec())
-        path = dialog.directory().absolutePath();
-
-    #else
-    QString path = QFileDialog::getExistingDirectory(this, "Select volume's folder", CSettings::instance()->getVCInputPath().c_str(), QFileDialog::ShowDirsOnly);
-    #endif
+    QString path = FastFileDialog::getExistingDirectory(this, "Select volume folder", CSettings::instance()->getVCInputPath().c_str());
 
     if(!path.isEmpty())
     {
@@ -507,22 +496,7 @@ void PConverter::inFileButtonClicked()
     else if(inFormatCBox->currentText().compare(iim::BDV_HDF5_FORMAT.c_str()) == 0)
         namefilter = "HDF5 files (*.h5)";
 
-    #ifdef _USE_QT_DIALOGS
-    QString path = "";
-    QFileDialog dialog(0);
-    dialog.setFileMode(QFileDialog::ExistingFile);
-    dialog.setViewMode(QFileDialog::Detail);
-    dialog.setWindowFlags(Qt::WindowStaysOnTopHint);
-    dialog.setWindowTitle("Select volume's file");
-    dialog.setNameFilter(namefilter.c_str());
-    dialog.setDirectory(CSettings::instance()->getVCInputPath().c_str());
-    if(dialog.exec())
-       if(!dialog.selectedFiles().empty())
-           path = dialog.selectedFiles().front();
-
-    #else
-    QString path = QFileDialog::getOpenFileName(this, "Select volume's file", CSettings::instance()->getVCInputPath().c_str(), namefilter.c_str());
-    #endif
+    QString path = FastFileDialog::getOpenFileName(this, "Select volume file", CSettings::instance()->getVCInputPath().c_str(), namefilter.c_str());
 
     if(!path.isEmpty())
     {
@@ -562,20 +536,7 @@ void PConverter::outDirButtonClicked()
 {
     /**/tf::debug(tf::LEV1, 0, __itm__current__function__);
 
-    #ifdef _USE_QT_DIALOGS
-    QString path;
-    QFileDialog dialog(0);
-    dialog.setFileMode(QFileDialog::Directory);
-    dialog.setViewMode(QFileDialog::Detail);
-    dialog.setWindowFlags(Qt::WindowStaysOnTopHint);
-    dialog.setWindowTitle("Select the directory where the converted volume has to be stored");
-    dialog.setDirectory(CSettings::instance()->getVCOutputPath().c_str());
-    if(dialog.exec())
-        path = dialog.directory().absolutePath();
-
-    #else
-    QString path = QFileDialog::getExistingDirectory(this, "Select the directory where the converted volume has to be stored", CSettings::instance()->getVCOutputPath().c_str(), QFileDialog::ShowDirsOnly);
-    #endif
+    QString path = FastFileDialog::getExistingDirectory(this, "Select output folder", CSettings::instance()->getVCOutputPath().c_str());
 
     if(!path.isEmpty())
         outPathField->setText(path);

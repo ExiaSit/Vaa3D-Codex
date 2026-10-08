@@ -74,6 +74,8 @@ Sept 30, 2008: disable  open in the same window function, also add flip image fu
 
 //#include "dialog_pointcloudatlas_linkerloader.h"
 //#include "atlas_window.h"
+#include "../basic_c_fun/FastFileDialog.h"
+
 MainWindow::MainWindow()
 {
     //initialize every pointer to 0. added on 080612
@@ -668,7 +670,7 @@ void MainWindow::newFile()
 }
 void MainWindow::open()
 {
-    QString fileName = QFileDialog::getOpenFileName(this);
+    QString fileName = FastFileDialog::getOpenFileName(this);
     loadV3DFile(fileName, true, global_setting.b_autoOpenImg3DViewer); // loadV3DFile func changed to 3 args. YuY Nov. 18, 2010. change false to global_setting.b_autoOpenImg3DViewer. 2011-02-09, PHC
 }
 // By CMB Oct-08-2010
@@ -1544,7 +1546,7 @@ void MainWindow::setup_global_imgproc_parameter_default()
 }
 void MainWindow::import_GeneralImageFile()
 {
-    QString fileName = QFileDialog::getOpenFileName(this);
+    QString fileName = FastFileDialog::getOpenFileName(this);
     if (!fileName.isEmpty()) {
         XFormWidget *existing = findMdiChild(fileName);
         if (existing) {
@@ -1576,7 +1578,7 @@ void MainWindow::import_GeneralImageFile()
 }
 void MainWindow::import_Leica()
 {
-    QString fileName = QFileDialog::getOpenFileName(this);
+    QString fileName = FastFileDialog::getOpenFileName(this);
     if (!fileName.isEmpty()) {
         XFormWidget *existing = findMdiChild(fileName);
         if (existing) {
@@ -1616,7 +1618,7 @@ void MainWindow::func_procIO_import_atlas_imgfolder()
                              "You will be then asked to specify a file name of the output .atlas linker file.<br><br>"
                              );
     //get the input individual file
-    QString fileName = QFileDialog::getOpenFileName(this);
+    QString fileName = FastFileDialog::getOpenFileName(this);
     if (fileName.isEmpty())
     {
         v3d_msg("No input file is selected. Do nothing.");
@@ -1740,7 +1742,7 @@ QString MainWindow::strippedName(const QString &fullFileName)
 void MainWindow::atlasView()
 {
     /*
-    QString fileName = QFileDialog::getOpenFileName(this);
+    QString fileName = FastFileDialog::getOpenFileName(this);
     if (!fileName.isEmpty()) {
         XFormWidget *existing = findMdiChild(fileName);
         if (existing) {
@@ -3033,7 +3035,7 @@ void MainWindow::func_open_neuron_game()
 //void MainWindow::func_procPC_Atlas_edit_atlaslinkerfile()
 //{
 //	apoAtlasLinkerInfoAll apo_atlas_info;
-//	QString fileName = QFileDialog::getOpenFileName(this, tr("Open an Point Cloud Atlas File"),
+//	QString fileName = FastFileDialog::getOpenFileName(this, tr("Open an Point Cloud Atlas File"),
 //													"",
 //													tr("point cloud atlas linker file (*.pc_atlas)"));
 //    if (fileName.isEmpty())
@@ -3060,10 +3062,10 @@ void MainWindow::func_open_neuron_game()
 //void MainWindow::func_procPC_Atlas_view_atlas(){}
 void MainWindow::func_procPC_Atlas_view_atlas_computeVanoObjStat()
 {
-    //	QString inName = QFileDialog::getOpenFileName(this, tr("Open a Point Cloud Atlas File"),
+    //	QString inName = FastFileDialog::getOpenFileName(this, tr("Open a Point Cloud Atlas File"),
     //													"",
     //													tr("point cloud annotation linker file (*.ano *)"));
-    QString inName = QFileDialog::getExistingDirectory(this, tr("Select a directory contain .ano files"),"");
+    QString inName = FastFileDialog::getExistingDirectory(this, tr("Select a directory contain .ano files"),"");
     QStringList listRecompute;
     QFileInfo fi_inName(inName);
     if (fi_inName.isDir())
