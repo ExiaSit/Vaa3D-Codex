@@ -39,6 +39,7 @@ Peng, H, Ruan, Z., Atasoy, D., and Sternson, S. (2010) “Automatic reconstructi
  * last update: 090406 by Hanchuan Peng. fix a bug not to set the default s.on states when create the label field surface
  */
 
+#include "../basic_c_fun/FastFileDialog.h"
 #include "GLee2glew.h" ////2020-2-10
 
 #include "renderer_gl1.h"
@@ -301,7 +302,7 @@ void Renderer_gl1::constructLabelfieldSurf(int mesh_method, int mesh_density)
 	if (QMessageBox::question (0, "", "Do you want to import label field name from a VANO APO annotation file?", QMessageBox::Yes, QMessageBox::No)
 		== QMessageBox::Yes)
 	{
-		QString curFile = QFileDialog::getOpenFileName(0,
+		QString curFile = FastFileDialog::getOpenFileName(0,
 													   QObject::tr("Select a VANO APO annotation file... "),
 													   QObject::tr(""),
 													   QObject::tr("annotation (*.apo);;All Files (*)"));

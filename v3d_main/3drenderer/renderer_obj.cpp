@@ -26,6 +26,7 @@ Peng, H, Ruan, Z., Atasoy, D., and Sternson, S. (2010) Automatic reconstruction 
  * Last update: 150506: by PHC. add asc reading support
  */
 
+#include "../basic_c_fun/FastFileDialog.h"
 #include "GLee2glew.h" ////2020-2-10
 
 #include "renderer_gl1.h"
@@ -630,7 +631,7 @@ void Renderer_gl1::loadObjectFromFile(const char* url)
 	if (url)
 		filename = QString(url);
 	else
-	    filename = QFileDialog::getOpenFileName(0, QObject::tr("Open File"),
+	    filename = FastFileDialog::getOpenFileName(0, QObject::tr("Open File"),
 	    		"",
                 QObject::tr("Supported file (*.swc *.eswc *.sswc *.asc *.apo *.raw *.v3draw *.vaa3draw *.v3dpbd *.tif *.tiff *.v3ds *.vaa3ds *.obj *.marker *.csv)"
                         ";;Neuron structure	(*.swc *.eswc *.sswc *.asc)"

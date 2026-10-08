@@ -44,6 +44,7 @@ last update: 060903
 
 ****************************************************************************/
 
+#include "../basic_c_fun/FastFileDialog.h"
 #include "v3dr_mainwindow.h"
 #include "v3dr_glwidget.h"
 
@@ -843,7 +844,7 @@ void V3dR_MainWindow::setNSteps(int t)
 void iDrawMainWindow::openAnoFile()
 {
     //get the file and verify it is useable. If not exist or useable, the  make no change of the current setting (3D view, etc)
-	QString	tmpfile = QFileDialog::getOpenFileName(
+	QString	tmpfile = FastFileDialog::getOpenFileName(
                     this,
                     "Choose an atlas/annotation file to open",
                     "./",

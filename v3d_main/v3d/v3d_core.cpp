@@ -110,6 +110,7 @@
  **
  ****************************************************************************/
 
+#include "../basic_c_fun/FastFileDialog.h"
 #include <stdio.h>
 
 
@@ -4616,10 +4617,10 @@ bool XFormWidget::getFlagImgValScaleDisplay()
 
 void XFormWidget::setOpenFileName()
 {
-    QString tmp = QFileDialog::getOpenFileName(this,
+    QString tmp = FastFileDialog::getOpenFileName(this,
 											   tr("Select a stack image file to open ... "),
 											   openFileNameLabel,
-											   tr("V3D's Raw image stack (*.v3draw; *.raw);TIFF stacks (*.tif; *.tiff);All Files (*)"));
+											   tr("V3D's Raw image stack (*.v3draw *.raw);;TIFF stacks (*.tif *.tiff);;All Files (*)"));
 	if (!tmp.isEmpty()) //note that I used isEmpty() instead of isNull, although seems the Cancel operation will return a null string. phc 060422
 	{
 		openFileNameLabel = tmp;

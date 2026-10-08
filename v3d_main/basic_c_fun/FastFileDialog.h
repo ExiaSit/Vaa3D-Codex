@@ -45,7 +45,7 @@ class FastFileDialog : public QDialog
     QLineEdit *pathEdit,*searchEdit,*fileEdit;
     QListWidget *list;
     QLabel *status;
-    QComboBox *filterBox;
+    QComboBox *filterBox,*pathHistory,*fileHistory;
     QCheckBox *hidden;
     QPushButton *previous,*next;
     QTimer *poll,*searchDelay;
@@ -53,6 +53,23 @@ class FastFileDialog : public QDialog
     const int pageSize=500;
     QIcon folderIcon,fileIcon;
 
+    static void remember(const QString &key,const QString &path) {
+        QSettings settings("HHMI","Vaa3D");
+        QStringList paths=settings.value(key).toStringList();
+        paths.removeAll(path);paths.prepend(path);
+        while(paths.size()>20)paths.removeLast();
+        settings.setValue(key,paths);
+    }
+    static QComboBox *historyBox(const QString &key,const QString &name) {
+        auto box=new QComboBox;box->setObjectName(name);box->setEditable(true);
+        box->setInsertPolicy(QComboBox::NoInsert);box->setMaxVisibleItems(12);
+        box->setSizePolicy(QSizePolicy::Expanding,QSizePolicy::Fixed);
+        box->setMinimumContentsLength(30);
+        box->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
+        QSettings settings("HHMI","Vaa3D");box->addItems(settings.value(key).toStringList());
+        box->setCurrentIndex(-1);
+        return box;
+    }
     QString absolute(const QString &text) const {
         QString p=text;
         if(p=="~")p=QDir::homePath();
@@ -74,6 +91,9 @@ class FastFileDialog : public QDialog
         }
         selectedPath=info.absoluteFilePath();
         QSettings settings("HHMI","Vaa3D");settings.setValue("FastFileDialog/lastDirectory",directoriesOnly?selectedPath:info.absolutePath());
+        remember("FastFileDialog/recentDirectories",info.absolutePath());
+        if(directoriesOnly)remember("FastFileDialog/recentDirectories",selectedPath);
+        else remember("FastFileDialog/recentFiles",selectedPath);
         accept();
     }
     void navigate(const QString &input) {
@@ -149,8 +169,8 @@ public:
         currentPath=QDir::homePath();
         auto layout=new QVBoxLayout(this);auto navigation=new QHBoxLayout;layout->addLayout(navigation);
         auto up=new QPushButton(QString::fromUtf8("上级"));auto home=new QPushButton(QString::fromUtf8("主目录"));
-        pathEdit=new QLineEdit;pathEdit->setObjectName("fastPath");auto go=new QPushButton(QString::fromUtf8("转到"));
-        navigation->addWidget(up);navigation->addWidget(home);navigation->addWidget(pathEdit,1);navigation->addWidget(go);
+        pathHistory=historyBox("FastFileDialog/recentDirectories","fastPathHistory");pathEdit=pathHistory->lineEdit();pathEdit->setObjectName("fastPath");auto go=new QPushButton(QString::fromUtf8("转到"));
+        navigation->addWidget(up);navigation->addWidget(home);navigation->addWidget(pathHistory,1);navigation->addWidget(go);
         auto options=new QHBoxLayout;layout->addLayout(options);
         searchEdit=new QLineEdit;searchEdit->setObjectName("fastSearch");searchEdit->setPlaceholderText(QString::fromUtf8("搜索当前目录中的文件名"));
         hidden=new QCheckBox(QString::fromUtf8("显示隐藏项"));options->addWidget(searchEdit,1);options->addWidget(hidden);
@@ -158,7 +178,7 @@ public:
         folderIcon=style()->standardIcon(QStyle::SP_DirIcon);fileIcon=style()->standardIcon(QStyle::SP_FileIcon);
         auto pages=new QHBoxLayout;layout->addLayout(pages);status=new QLabel;status->setObjectName("fastStatus");status->setWordWrap(true);
         previous=new QPushButton(QString::fromUtf8("上一页"));next=new QPushButton(QString::fromUtf8("下一页"));previous->setObjectName("fastPrevious");next->setObjectName("fastNext");pages->addWidget(status,1);pages->addWidget(previous);pages->addWidget(next);
-        fileEdit=new QLineEdit;fileEdit->setObjectName("fastFilename");fileEdit->setPlaceholderText(QString::fromUtf8("文件名或完整路径"));layout->addWidget(fileEdit);fileEdit->setVisible(!onlyDirs);
+        fileHistory=historyBox("FastFileDialog/recentFiles","fastFileHistory");fileEdit=fileHistory->lineEdit();fileEdit->setObjectName("fastFilename");fileEdit->setPlaceholderText(QString::fromUtf8("文件名或完整路径"));layout->addWidget(fileHistory);fileHistory->setVisible(!onlyDirs);
         filterBox=new QComboBox;filterBox->setObjectName("fastFilter");filterBox->addItems(nameFilter.isEmpty()?QStringList(QString::fromUtf8("所有文件 (*)")):nameFilter.split(";;"));layout->addWidget(filterBox);filterBox->setVisible(!onlyDirs);
         auto actions=new QHBoxLayout;layout->addLayout(actions);actions->addStretch();
         auto open=new QPushButton(onlyDirs?QString::fromUtf8("选择此文件夹"):QString::fromUtf8("打开"));open->setObjectName("fastOpen");auto cancel=new QPushButton(QString::fromUtf8("取消"));actions->addWidget(open);actions->addWidget(cancel);
@@ -169,7 +189,10 @@ public:
             if(!scan || !scan->done)return;poll->stop();
             if(!scan->error.isEmpty()){status->setText(QString::fromUtf8("读取失败：")+scan->error);return;}
             entries=std::move(scan->entries);filter();setProperty("directoryLoaded",true);
+            remember("FastFileDialog/recentDirectories",currentPath);
         });
+        connect(pathHistory,static_cast<void(QComboBox::*)(int)>(&QComboBox::activated),this,[this](int){navigate(pathEdit->text());});
+        // Selecting a recent file fills the field; Open/Return confirms the choice.
         connect(go,&QPushButton::clicked,this,[this](){navigate(pathEdit->text());});
         connect(pathEdit,&QLineEdit::returnPressed,this,[this](){navigate(pathEdit->text());});
         connect(up,&QPushButton::clicked,this,[this](){navigate(QDir(currentPath).absoluteFilePath(".."));});

@@ -36,6 +36,7 @@ Peng, H, Ruan, Z., Atasoy, D., and Sternson, S. (2010) “Automatic reconstructi
  *  last edit: by Hanchuan Peng, 2010-01-30
  */
 
+#include "../basic_c_fun/FastFileDialog.h"
 #include "v3dr_colormapDialog.h"
 
 
@@ -348,7 +349,7 @@ void V3dr_colormapDialog::load()
 	qDebug("Vaa3dr_colormapDialog::load");
 	hide();
 
-    QString filename = QFileDialog::getOpenFileName(0, QObject::tr("Open Color Map File"),
+    QString filename = FastFileDialog::getOpenFileName(0, QObject::tr("Open Color Map File"),
     		".vaa3dcm",
     		QObject::tr("Vaa3D Color Map File (*.vaa3dcm);;(*.*)"
     				));

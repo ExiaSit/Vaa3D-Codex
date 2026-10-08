@@ -3514,7 +3514,7 @@ void PMain::showDialogVtk2APO()
 
     try
     {
-        QString vtkFilePath = QFileDialog::getOpenFileName(this, tr("Select input file"), 0,tr("VTK ascii files (*.vtk)"));
+        QString vtkFilePath = FastFileDialog::getOpenFileName(this, tr("Select input file"), 0,tr("VTK ascii files (*.vtk)"));
         if(!vtkFilePath.isEmpty())
         {
             QString apoFilePath = QFileDialog::getSaveFileName(this, tr("Save to"), 0,tr("APO files (*.apo)"));
@@ -3537,7 +3537,7 @@ void PMain::showDialogMaMut2APO()
 
     try
     {
-        QString xmlFilePath = QFileDialog::getOpenFileName(this, tr("Select input file"), 0,tr("MaMuT input files (*.xml)"));
+        QString xmlFilePath = FastFileDialog::getOpenFileName(this, tr("Select input file"), 0,tr("MaMuT input files (*.xml)"));
         if(!xmlFilePath.isEmpty())
         {
             QString apoFilePath = QFileDialog::getSaveFileName(this, tr("Save to"), 0,tr("APO files (*.apo)"));
@@ -3560,10 +3560,10 @@ void PMain::showDialogTypeIandTypeIIerrors()
 
     try
     {
-        QString apo1FilePath = QFileDialog::getOpenFileName(this, tr("Select first APO file (assumed as TRUTH)"), 0,tr("APO files (*.apo)"));
+        QString apo1FilePath = FastFileDialog::getOpenFileName(this, tr("Select first APO file (assumed as TRUTH)"), 0,tr("APO files (*.apo)"));
         if(!apo1FilePath.isEmpty())
         {
-            QString apo2FilePath = QFileDialog::getOpenFileName(this, tr("Select second APO file"), 0,tr("APO files (*.apo)"));
+            QString apo2FilePath = FastFileDialog::getOpenFileName(this, tr("Select second APO file"), 0,tr("APO files (*.apo)"));
             if(!apo2FilePath.isEmpty())
             {
                 QString outputPath = QFileDialog::getSaveFileName(this, tr("Save output to"), 0,tr("APO files (*.apo)"));
@@ -3590,10 +3590,10 @@ void PMain::showDialogDiffAPO()
 
     try
     {
-        QString apo1FilePath = QFileDialog::getOpenFileName(this, tr("Select first APO file (assumed as TRUTH)"), 0,tr("APO files (*.apo)"));
+        QString apo1FilePath = FastFileDialog::getOpenFileName(this, tr("Select first APO file (assumed as TRUTH)"), 0,tr("APO files (*.apo)"));
         if(!apo1FilePath.isEmpty())
         {
-            QString apo2FilePath = QFileDialog::getOpenFileName(this, tr("Select second APO file"), 0,tr("APO files (*.apo)"));
+            QString apo2FilePath = FastFileDialog::getOpenFileName(this, tr("Select second APO file"), 0,tr("APO files (*.apo)"));
             if(!apo2FilePath.isEmpty())
             {
                 QString savePath = QFileDialog::getSaveFileName(this, tr("Output file"), 0,tr("APO files (*.apo)"));
@@ -3619,7 +3619,7 @@ void PMain::showDialogTrimAPO()
 
     try
     {
-        QString apo1FilePath = QFileDialog::getOpenFileName(this, tr("Open input APO file"), 0,tr("APO files (*.apo)"));
+        QString apo1FilePath = FastFileDialog::getOpenFileName(this, tr("Open input APO file"), 0,tr("APO files (*.apo)"));
         if(!apo1FilePath.isEmpty())
         {
             QString apo2FilePath = QFileDialog::getSaveFileName(this, tr("Select output APO file"), 0,tr("APO files (*.apo)"));
@@ -3649,7 +3649,7 @@ void tf::PMain::showDialogLabelDuplicateAPO()
 
     try
     {
-        QString apo1FilePath = QFileDialog::getOpenFileName(this, tr("Open input APO file"), 0,tr("APO files (*.apo)"));
+        QString apo1FilePath = FastFileDialog::getOpenFileName(this, tr("Open input APO file"), 0,tr("APO files (*.apo)"));
         if(!apo1FilePath.isEmpty())
         {
             QString apo2FilePath = QFileDialog::getSaveFileName(this, tr("Select output APO file"), 0,tr("APO files (*.apo)"));
@@ -3753,10 +3753,10 @@ void PMain::showDialogGenerateTimeSeriesInterpolation()
 
     try
     {
-        std::string im1Path = QFileDialog::getOpenFileName(this, tr("Select frame A image")).toStdString();
+        std::string im1Path = FastFileDialog::getOpenFileName(this, tr("Select frame A image")).toStdString();
         if(!im1Path.empty())
         {
-            std::string im2Path = QFileDialog::getOpenFileName(this, tr("Select frame B image"), tf::cdUp(im1Path).c_str()).toStdString();
+            std::string im2Path = FastFileDialog::getOpenFileName(this, tr("Select frame B image"), tf::cdUp(im1Path).c_str()).toStdString();
             if(!im2Path.empty())
             {
                 std::string dirPath = QFileDialog::getExistingDirectory(this, tr("Select output directory"), 0, QFileDialog::ShowDirsOnly).toStdString();
@@ -3800,7 +3800,7 @@ void PMain::showDialogGenerateTimeSeriesReplication()
 
     try
     {
-        std::string im1Path = QFileDialog::getOpenFileName(this, tr("Select single-frame image")).toStdString();
+        std::string im1Path = FastFileDialog::getOpenFileName(this, tr("Select single-frame image")).toStdString();
         if(!im1Path.empty())
         {
             std::string dirPath = QFileDialog::getExistingDirectory(this, tr("Select output directory"), 0, QFileDialog::ShowDirsOnly).toStdString();

@@ -33,6 +33,27 @@ int main(int argc,char **argv) {
   assert(d.property("matchingEntries").toInt()==0);
   d.findChild<QLineEdit*>("fastFilename")->setText("missing.tif");d.findChild<QPushButton*>("fastOpen")->click();assert(d.selectedFile().isEmpty());
  }
+ {
+  FastFileDialog d(0,"History",temp.path(),QString(),false);
+  auto files=d.findChild<QComboBox*>("fastFileHistory");
+  auto dirs=d.findChild<QComboBox*>("fastPathHistory");
+  assert(files && files->isEditable() && files->itemText(0)==unicode.fileName());
+  assert(dirs && dirs->findText(dir.filePath("child"))>=0);
+  files->setCurrentIndex(0);assert(d.selectedFile().isEmpty());
+  d.findChild<QPushButton*>("fastOpen")->click();assert(d.selectedFile()==unicode.fileName());
+  QSettings saved("HHMI","Vaa3D");
+  auto history=saved.value("FastFileDialog/recentFiles").toStringList();
+  assert(history.count(unicode.fileName())==1);
+  QStringList many;for(int i=0;i<25;++i)many<<QString("/old/%1.swc").arg(i);
+  saved.setValue("FastFileDialog/recentFiles",many);
+ }
+ {
+  FastFileDialog d(0,"Bounded history",temp.path(),QString(),false);
+  d.findChild<QLineEdit*>("fastFilename")->setText(unicode.fileName());
+  d.findChild<QPushButton*>("fastOpen")->click();
+  QSettings saved("HHMI","Vaa3D");auto history=saved.value("FastFileDialog/recentFiles").toStringList();
+  assert(history.size()==20 && history.first()==unicode.fileName());
+ }
  {FastFileDialog cancelled(0,"Cancel",temp.path(),QString(),false);cancelled.reject();}
  QApplication::processEvents();std::cout<<"Fast file dialog tests passed\n";
 }
