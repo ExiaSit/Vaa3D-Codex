@@ -96,16 +96,17 @@ void Renderer::drawString(float x, float y, float z, const char* text, int shado
 		glDepthFunc(GL_LEQUAL);
 	}
 
+#if !defined(USE_Qt5)
     QFont f1;  f1.setPointSize((fontsize>0)?fontsize:30); f1.setWeight(99);
     if (fontsize>0)
-#if defined(USE_Qt5)
-#else
         ((QOpenGLWidget_proxy*)widget)->renderText(x,y,z, QString(text), f1);
     else
         ((QOpenGLWidget_proxy*)widget)->renderText(x,y,z, QString(text));
 #endif
 
 
+	// Restore shadow state even when Qt 5 omits renderText. Keeping the font-size
+	// condition outside the Qt guard made it swallow this pop for fontsize == 0.
 	if (shadow)
 	{
 		glPopAttrib();
