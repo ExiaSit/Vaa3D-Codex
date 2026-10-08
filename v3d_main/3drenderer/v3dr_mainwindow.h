@@ -88,6 +88,7 @@ public slots:
 	void onlySurfaceObjTab() {if(tabOptions) tabOptions->setCurrentIndex(1); if(tabCutPlane) tabCutPlane->setCurrentIndex(1);}
 
 	void doMenuOfSurfFile();
+	void importNeuronFile();
 	void doMenuOfAnimate();
 
     // previewMovie() also return the rendering benchmark information

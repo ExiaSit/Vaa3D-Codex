@@ -38,6 +38,7 @@ Peng, H, Ruan, Z., Atasoy, D., and Sternson, S. (2010) “Automatic reconstructi
  */
 
 #include "v3dr_mainwindow.h"
+#include "../basic_c_fun/FastFileDialog.h"
 
 
 #ifndef MIN
@@ -609,6 +610,14 @@ void V3dR_MainWindow::createControlWidgets()
     timeSlider->setPageStep(10);
 
     QVBoxLayout *viewLayout = new QVBoxLayout(viewGroup);
+    QPushButton *importNeuronButton = new QPushButton(QString::fromUtf8("导入 SWC/ESWC…"), viewGroup);
+    importNeuronButton->setObjectName("importNeuronButton");
+    importNeuronButton->setToolTip(QString::fromUtf8("选择 SWC 或 ESWC 文件，添加到当前三维视图"));
+    connect(importNeuronButton, SIGNAL(clicked()), this, SLOT(importNeuronFile()));
+    QHBoxLayout *importLayout = new QHBoxLayout;
+    importLayout->addWidget(importNeuronButton);
+    importLayout->addStretch();
+    viewLayout->addLayout(importLayout);
     viewLayout->addWidget(glWidgetArea);
     viewLayout->addWidget(timeSlider);
     viewLayout->setContentsMargins(0,0,0,0);
@@ -1613,4 +1622,22 @@ QComboBox *V3dR_MainWindow::createChannelComboBox()
     //box->setValue(1);
 	//box->setSuffix(" %o");
 	return box;
+}
+
+void V3dR_MainWindow::importNeuronFile()
+{
+    if (!glWidget) return;
+    const QString filename = FastFileDialog::getOpenFileName(
+        this, QString::fromUtf8("导入神经元文件"), QString(),
+        QString::fromUtf8("神经元文件 (*.swc *.eswc *.SWC *.ESWC)"));
+    if (filename.isEmpty()) return;
+    const QString suffix = QFileInfo(filename).suffix().toLower();
+    if (suffix != "swc" && suffix != "eswc")
+    {
+        QMessageBox::warning(this, QString::fromUtf8("无法导入"),
+                             QString::fromUtf8("请选择 .swc 或 .eswc 文件。"));
+        return;
+    }
+    // Use the same renderer and refresh path as dropping a file in this viewer.
+    glWidget->loadObjectFromFile(filename);
 }
