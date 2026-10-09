@@ -43,6 +43,7 @@ Peng, H, Ruan, Z., Atasoy, D., and Sternson, S. (2010) “Automatic reconstructi
 #include "GLee2glew.h" ////2020-2-10
 
 #include "renderer_gl1.h"
+#include <QElapsedTimer>
 #include "marchingcubes.cpp"
 
 
@@ -110,6 +111,7 @@ static const char* i2strRGB[] = //{"R", "G", "B"};
 void Renderer_gl1::loadLabelfieldSurf(const QString& filename, int ch)
 {
 	qDebug("    Renderer_gl1::loadLabelfieldSurf(ch = %d)", ch);
+    if (lf_busy) { v3d_msg("Surface generation is already running."); return; }
 
     lf_data_title = filename; // 081004
 
@@ -190,10 +192,10 @@ void Renderer_gl1::loadLabelfieldSurf(const QString& filename, int ch)
 
 #if defined(USE_Qt5)
 		mesh_density = QInputDialog::getInt(0, qtitle,
-										qchannel+ QObject::tr("Creating Mesh density:"), 100, 0, 1000, 1, &ok);
+										qchannel+ QObject::tr("Sampling steps per axis (cost grows cubically; 1000 = 1 billion cubes):"), 100, 1, 1000, 1, &ok);
 #else
 		mesh_density = QInputDialog::getInteger(0, qtitle,
-										qchannel+ QObject::tr("Creating Mesh density:"), 100, 0, 1000, 1, &ok);
+										qchannel+ QObject::tr("Sampling steps per axis (cost grows cubically; 1000 = 1 billion cubes):"), 100, 1, 1000, 1, &ok);
 #endif
 		if (! ok) return;
 	}
@@ -328,6 +330,14 @@ void Renderer_gl1::constructLabelfieldSurf(int mesh_method, int mesh_density)
     }
 
     V3DLONG num_surf0 = listLabelSurf.size(); //the existing number of surfaces. PHC 131021
+    const QList<LabelSurf> existingSurfaces = listLabelSurf;
+    listLabelSurf.clear(); // Collect only this import; never regenerate existing labels.
+    QProgressDialog meshProgress(QString::fromUtf8("正在生成 Mask 表面…"), QString::fromUtf8("取消"),0,100,(QWidget*)widget);
+    meshProgress.setWindowModality(Qt::ApplicationModal);
+    meshProgress.setMinimumDuration(0);meshProgress.setAutoClose(false);meshProgress.setAutoReset(false);
+    meshProgress.show();
+    struct MeshProgressContext { QProgressDialog *dialog; QElapsedTimer timer; bool cancelled; };
+    MeshProgressContext context;context.dialog=&meshProgress;context.cancelled=false;context.timer.start();
 
 	////////////////////////////////////////////
 
@@ -422,7 +432,24 @@ void Renderer_gl1::constructLabelfieldSurf(int mesh_method, int mesh_density)
 			mesh_iso0 = listLabelSurf.at(i).label;
 			mesh_iso1 = listLabelSurf.at(i).label2;
 
-			Triangle* pT = MarchingCubes(mesh_density, 255/2.f, _labelSampleFunc, mesh_method); //method 0 is better for label data
+			meshProgress.setLabelText(QString::fromUtf8("生成表面 %1/%2：每轴 %3 步（%4 个网格），可取消")
+                .arg(i+1).arg(num_surf).arg(mesh_density).arg(1LL*mesh_density*mesh_density*mesh_density));
+            Triangle* pT = MarchingCubes(mesh_density, 255/2.f, _labelSampleFunc, mesh_method,
+                [](int percent,void *opaque)->bool {
+                    MeshProgressContext *ctx=static_cast<MeshProgressContext*>(opaque);
+                    if(ctx->timer.elapsed()>=40) {
+                        ctx->dialog->setValue(percent);
+                        QApplication::processEvents();ctx->timer.restart();
+                    }
+                    ctx->cancelled=ctx->dialog->wasCanceled();return !ctx->cancelled;
+                }, &context);
+            if(context.cancelled) {
+                while(list_listTriangle.size()>num_surf0)delTriangles(list_listTriangle.takeLast());
+                listLabelSurf=existingSurfaces;
+                if(lf_image4d && lf_fromfile)delete lf_image4d;
+                lf_image4d=0;lf_fromfile=false;lf_data1d=0;lf_mask=0;lf_busy=false;
+                return;
+            } //method 0 is better for label data
 
 			// restore scale
 			for (Triangle* p = pT; p!=NULL; p = p->next)
@@ -441,6 +468,7 @@ void Renderer_gl1::constructLabelfieldSurf(int mesh_method, int mesh_density)
 		f_num += t_num;
 	}
 
+    listLabelSurf = existingSurfaces + listLabelSurf;
     num_surf += num_surf0;
 
     qDebug( "num_surf=%ld, list_pTriangle.size()=%ld", num_surf, list_listTriangle.size());

@@ -103,7 +103,7 @@ struct Triangle*
      MarchingCubes(int numStep,
 				   float isoValue,
 				   t_fSample pfSample,
-				   int method)
+				   int method, bool (*progress)(int, void*), void *context)
 {
 		vMarchCube = (method==0)? vMarchCube1 : vMarchCube2;
 
@@ -117,11 +117,16 @@ struct Triangle*
 		int d = 0;
 	    for(iX = d; iX < numStep-d; iX++)
         for(iY = d; iY < numStep-d; iY++)
+        {
+        if(progress && !progress(int((100LL*(iX*numStep+iY))/(1LL*numStep*numStep)),context)) {
+            delTriangles(pT0);pT0=pT1=NULL;return NULL;
+        }
         for(iZ = d; iZ < numStep-d; iZ++)
         {
                 vMarchCube(iX*fStepSize, iY*fStepSize, iZ*fStepSize, fStepSize);
         }
 
+        }
 		return pT0;
 }
 

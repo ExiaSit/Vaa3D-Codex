@@ -94,7 +94,7 @@ struct Triangle* MarchingCubes(        //return triangle list
 				   int   numStep,      //num of sampling steps
 				   float isoValue,     //iso value
 				   t_fSample fSample,  //sampling function
-				   int method=0);      //0/1 -- Marching Cubes/Tetrahedrons
+				   int method=0, bool (*progress)(int, void*)=0, void *context=0);      //0/1 -- Marching Cubes/Tetrahedrons
 
 
 #endif// _marchingcubes_h_
