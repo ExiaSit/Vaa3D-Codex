@@ -111,6 +111,9 @@
  ****************************************************************************/
 
 #include "../basic_c_fun/FastFileDialog.h"
+#include "../basic_c_fun/MaximumZProjection.h"
+#include <new>
+#include <limits>
 #include <stdio.h>
 
 
@@ -137,6 +140,7 @@
 
 #include "v3d_core.h"
 #include "mainwindow.h"
+#include "MIPViewer.h"
 
 #include <fstream> //080107
 #include <iostream> //080107
@@ -4301,6 +4305,11 @@ void XFormWidget::createGUI()
 	//btnLayout->setContentsMargins(0,0,0,0); //remove margins
     btnLayout->addWidget(landmarkManagerButton);
     btnLayout->addWidget(imgV3DButton);
+    QPushButton *mipButton = new QPushButton(QString::fromUtf8("显示 MIP（沿 Z 轴）"), mainGroup);
+    mipButton->setObjectName("showCurrentMIPButton");
+    mipButton->setToolTip(QString::fromUtf8("将当前图像全部 Z 切片取最大值，在新窗口显示 XY 投影"));
+    connect(mipButton, SIGNAL(clicked()), this, SLOT(showCurrentMIP()));
+    btnLayout->addWidget(mipButton);
     btnLayout->addStretch(0);
     btnLayout->addWidget(whatsThisButton);
 
@@ -6620,3 +6629,51 @@ void My4DImage::update_3drenderer_neuron_view()
 	}
 }
 
+
+void XFormWidget::showCurrentMIP()
+{
+    if (!imgData || !imgData->valid() || !getMainControlWindow()) {
+        v3d_msg("Please load an image first."); return;
+    }
+    const V3DLONG x=imgData->getXDim(), y=imgData->getYDim();
+    const V3DLONG z=imgData->getZDim(), c=imgData->getCDim();
+    const ImagePixelType type=imgData->getDatatype();
+    if (type!=V3D_UINT8 && type!=V3D_UINT16 && type!=V3D_FLOAT32) return;
+    unsigned char *out=0;
+    try { out=new unsigned char[size_t(x)*y*c*imgData->getUnitBytes()]; }
+    catch (const std::bad_alloc&) { v3d_msg("Not enough memory for the MIP image."); return; }
+    QApplication::setOverrideCursor(Qt::WaitCursor);
+    const unsigned char *src=imgData->getRawData();
+    if(type==V3D_UINT8) maximumZProjection(src,out,size_t(x)*y,z,c);
+    else if(type==V3D_UINT16) maximumZProjection(reinterpret_cast<const unsigned short*>(src),reinterpret_cast<unsigned short*>(out),size_t(x)*y,z,c);
+    else maximumZProjection(reinterpret_cast<const float*>(src),reinterpret_cast<float*>(out),size_t(x)*y,z,c);
+    QApplication::restoreOverrideCursor();
+    QImage image(int(x),int(y),QImage::Format_RGB32);
+    const size_t plane=size_t(x)*y;
+    const int shownChannels=c>=3?3:(c==2?2:1);
+    double low[3]={0,0,0},high[3]={255,255,255};
+    auto value=[out,type](size_t i)->double {
+        if(type==V3D_UINT8)return out[i];
+        if(type==V3D_UINT16)return reinterpret_cast<const unsigned short*>(out)[i];
+        return reinterpret_cast<const float*>(out)[i];
+    };
+    if(type!=V3D_UINT8)for(int ch=0;ch<shownChannels;++ch) {
+        low[ch]=std::numeric_limits<double>::infinity();high[ch]=-low[ch];
+        for(size_t i=0;i<plane;++i){double v=value(ch*plane+i);if(std::isfinite(v)){low[ch]=qMin(low[ch],v);high[ch]=qMax(high[ch],v);}}
+    }
+    for(int py=0;py<y;++py) {
+        QRgb *row=reinterpret_cast<QRgb*>(image.scanLine(py));
+        for(int px=0;px<x;++px) {
+            int rgb[3]={0,0,0};
+            for(int ch=0;ch<shownChannels;++ch) {
+                double v=value(ch*plane+size_t(py)*x+px);
+                rgb[ch]=std::isfinite(v)?(high[ch]>low[ch]?qBound(0,int(255*(v-low[ch])/(high[ch]-low[ch])),255):(v>0?255:0)):0;
+            }
+            if(shownChannels==1)rgb[1]=rgb[2]=rgb[0];
+            row[px]=qRgb(rgb[0],rgb[1],rgb[2]);
+        }
+    }
+    delete[] out;
+    MIPViewer *result=new MIPViewer(getMainControlWindow(),QFileInfo(openFileNameLabel).fileName(),image,z);
+    result->show();
+}

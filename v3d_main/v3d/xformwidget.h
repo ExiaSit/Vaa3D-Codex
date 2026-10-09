@@ -365,6 +365,7 @@ public slots:
     void doImage3DView(bool tmp_b_use_512x512x256, int b_local=0, V3DLONG bbx0=-1, V3DLONG bbx1=-1, V3DLONG bby0=-1, V3DLONG bby1=-1, V3DLONG bbz0=-1, V3DLONG bbz1=-1,
                        bool show=true); // @ADDED by Alessandro on 2015-09-29. Postpone show() if required.
 	void doMenuOf3DViewer();
+    void showCurrentMIP();
 	void aboutInfo();
 
     void setOpenFileName();
