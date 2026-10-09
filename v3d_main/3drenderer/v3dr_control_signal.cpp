@@ -38,6 +38,7 @@ Peng, H, Ruan, Z., Atasoy, D., and Sternson, S. (2010) “Automatic reconstructi
  */
 
 #include "v3dr_mainwindow.h"
+#include "PanDirectionPad.h"
 #include "../basic_c_fun/FastFileDialog.h"
 
 
@@ -350,6 +351,9 @@ void V3dR_MainWindow::createControlWidgets()
 	zoomBarBoxLayout->addWidget(yShiftBox, 2, 21-3-6, 1, 6);
 
 	zoomBarBoxLayout->addWidget(zoomReset, 1, (21-9)/2, 1, 9);
+    PanDirectionPad *panPad = new PanDirectionPad(xShiftSlider,yShiftSlider,zoomBarGroup);
+    zoomBarBoxLayout->addWidget(panPad,5,0,1,21);
+    connect(zoomReset,&QPushButton::clicked,panPad,[panPad](){panPad->stop();});
 
 
 
