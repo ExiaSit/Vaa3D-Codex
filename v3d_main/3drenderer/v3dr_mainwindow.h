@@ -89,6 +89,7 @@ public slots:
 
 	void doMenuOfSurfFile();
 	void importNeuronFile();
+	void importMaskFile();
 	void doMenuOfAnimate();
 
     // previewMovie() also return the rendering benchmark information

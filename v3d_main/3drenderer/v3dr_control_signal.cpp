@@ -616,6 +616,11 @@ void V3dR_MainWindow::createControlWidgets()
     connect(importNeuronButton, SIGNAL(clicked()), this, SLOT(importNeuronFile()));
     QHBoxLayout *importLayout = new QHBoxLayout;
     importLayout->addWidget(importNeuronButton);
+    QPushButton *importMaskButton = new QPushButton(QString::fromUtf8("导入 Mask…"), viewGroup);
+    importMaskButton->setObjectName("importMaskButton");
+    importMaskButton->setToolTip(QString::fromUtf8("导入 TIFF 分割标签（0 为背景），生成可在 Object Manager 中显示或隐藏的表面"));
+    connect(importMaskButton, SIGNAL(clicked()), this, SLOT(importMaskFile()));
+    importLayout->addWidget(importMaskButton);
     importLayout->addStretch();
     viewLayout->addLayout(importLayout);
     viewLayout->addWidget(glWidgetArea);
@@ -1639,5 +1644,24 @@ void V3dR_MainWindow::importNeuronFile()
         return;
     }
     // Use the same renderer and refresh path as dropping a file in this viewer.
+    glWidget->loadObjectFromFile(filename);
+}
+
+void V3dR_MainWindow::importMaskFile()
+{
+    if (!glWidget) return;
+    const QString filename = FastFileDialog::getOpenFileName(
+        this, QString::fromUtf8("导入 Mask（0 为背景，非零值为分割标签）"), QString(),
+        QString::fromUtf8("TIFF Mask (*.tif *.tiff *.TIF *.TIFF)"));
+    if (filename.isEmpty()) return;
+    const QString suffix = QFileInfo(filename).suffix().toLower();
+    if (suffix != "tif" && suffix != "tiff")
+    {
+        QMessageBox::warning(this, QString::fromUtf8("无法导入"),
+                             QString::fromUtf8("请选择 TIFF 格式的 Mask 文件。"));
+        return;
+    }
+    // The existing label-field loader creates native Label Surface objects;
+    // Object Manager controls their visibility using listLabelSurf[].on.
     glWidget->loadObjectFromFile(filename);
 }

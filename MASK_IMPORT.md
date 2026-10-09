@@ -1,0 +1,24 @@
+# TIFF Mask 叠加
+
+在 TIFF 图像的三维窗口左上角，点击“导入 SWC/ESWC…”旁边的“导入 Mask…”。
+选择 `.tif` 或 `.tiff` 文件；文件选择器支持历史路径。
+
+本入口复用 Vaa3D 原生标签表面生成流程，不要求预先转换 OBJ：
+
+1. Mesh type 选择 **Label field surface**（默认项）。0 作为背景，非零整数作为标签。
+2. Mesh method 选择 **Marching Cubes**（默认项）。
+3. Mesh density 可先使用默认值 100；这是网格采样精度，会影响小结构的保留和生成速度。
+4. 若询问是否从 VANO APO 导入名称，没有相应文件时选择 No。
+5. 如果已有表面，程序会询问是否清除；要保留已有表面请选择 No。
+
+打开 **Object Manager → Label Surface**，用 `on/off` 复选框显示/隐藏表面，
+用 `color` 修改颜色。SWC 仍由自己的神经元标签页独立控制。
+显示的是分割区域的三维表面，不是逐体素半透明染色层。
+
+Mask 必须与背景图像使用相同的 XYZ 尺寸和坐标；本入口不自动配准、缩放或平移。
+加载期间会执行表面提取，大图或大量标签可能需要等待。
+已检查用户提供的 79788 mask 与背景均为 XYZ 392×392×427，mask 值为 0/255。
+
+实现使用现有 `listLabelSurf` 和 Object Manager 的显隐状态；没有另建独立于
+Object Manager 的覆盖层。按钮输入校验只接受 TIFF；其他既有表面格式仍可从
+原有加载入口导入。

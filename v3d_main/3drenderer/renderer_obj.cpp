@@ -688,6 +688,7 @@ void Renderer_gl1::loadObjectFilename(const QString& filename)
             )
 		{
 			loadLabelfieldSurf(filename);
+            type = stLabelSurface;
             ep->labelfield_file = filename;
 		}
 		// if label surface obj
