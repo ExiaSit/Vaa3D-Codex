@@ -353,7 +353,6 @@ void V3dR_MainWindow::createControlWidgets()
 	zoomBarBoxLayout->addWidget(zoomReset, 1, (21-9)/2, 1, 9);
     PanDirectionPad *panPad = new PanDirectionPad(xShiftSlider,yShiftSlider,zoomBarGroup);
     zoomBarBoxLayout->addWidget(panPad,5,0,1,21);
-    connect(zoomReset,&QPushButton::clicked,panPad,[panPad](){panPad->stop();});
 
 
 
