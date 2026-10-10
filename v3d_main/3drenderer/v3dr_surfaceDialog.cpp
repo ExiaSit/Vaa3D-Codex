@@ -837,6 +837,8 @@ QTableWidget* V3dr_surfaceDialog::createTableSurf()
 
 	QTableWidget* t = new QTableWidget(row,col, this);
 	t->setHorizontalHeaderLabels(qsl);
+    // Keep logical indices used by existing handlers; show Y flip after on/off.
+    t->horizontalHeader()->moveSection(col-1,1);
     t->horizontalHeaderItem(col-1)->setToolTip(tr("Flip this object along Y for display only. Original coordinates are unchanged. Turn off before coordinate editing."));
 
 	//qDebug("  create begin t->rowCount = %d", t->rowCount());
@@ -917,6 +919,8 @@ QTableWidget* V3dr_surfaceDialog::createTableMarker()
 
 	QTableWidget* t = new QTableWidget(row,col, this);
 	t->setHorizontalHeaderLabels(qsl);
+    // Keep logical indices used by existing handlers; show Y flip after on/off.
+    t->horizontalHeader()->moveSection(col-1,1);
     t->horizontalHeaderItem(col-1)->setToolTip(tr("Flip this object along Y for display only. Original coordinates are unchanged. Turn off before coordinate editing."));
 
 	//qDebug("  create begin t->rowCount = %d", t->rowCount());
@@ -1000,6 +1004,8 @@ QTableWidget* V3dr_surfaceDialog::createTableSWC()
 
 	QTableWidget* t = new QTableWidget(row,col, this);
 	t->setHorizontalHeaderLabels(qsl);
+    // Keep logical indices used by existing handlers; show Y flip after on/off.
+    t->horizontalHeader()->moveSection(col-1,1);
     t->horizontalHeaderItem(col-1)->setToolTip(tr("Flip this object along Y for display only. Original coordinates are unchanged. Turn off before coordinate editing."));
 
 	qDebug("  create begin t->rowCount = %d", t->rowCount());
@@ -1100,6 +1106,8 @@ QTableWidget* V3dr_surfaceDialog::createTableNeuronSegment()
 
     QTableWidget* t = new QTableWidget(row,col, this);
 	t->setHorizontalHeaderLabels(qsl);
+    // Keep logical indices used by existing handlers; show Y flip after on/off.
+    t->horizontalHeader()->moveSection(col-1,1);
     t->horizontalHeaderItem(col-1)->setToolTip(tr("Flip this object along Y for display only. Original coordinates are unchanged. Turn off before coordinate editing."));
 
 	for (int i=0; i<row; i++)
@@ -1216,6 +1224,8 @@ QTableWidget* V3dr_surfaceDialog::createTableAPO()
 
 	QTableWidget* t = new QTableWidget(row,col, this);
 	t->setHorizontalHeaderLabels(qsl);
+    // Keep logical indices used by existing handlers; show Y flip after on/off.
+    t->horizontalHeader()->moveSection(col-1,1);
     t->horizontalHeaderItem(col-1)->setToolTip(tr("Flip this object along Y for display only. Original coordinates are unchanged. Turn off before coordinate editing."));
 
 	//qDebug("  create begin t->rowCount = %d", t->rowCount());
@@ -1296,6 +1306,8 @@ QTableWidget* V3dr_surfaceDialog::createTableAPO_Set()
 
 	QTableWidget* t = new QTableWidget(row,col, this);
 	t->setHorizontalHeaderLabels(qsl);
+    // Keep logical indices used by existing handlers; show Y flip after on/off.
+    t->horizontalHeader()->moveSection(col-1,1);
     t->horizontalHeaderItem(col-1)->setToolTip(tr("Flip this object along Y for display only. Original coordinates are unchanged. Turn off before coordinate editing."));
 
 	//qDebug("  create begin t->rowCount = %d", t->rowCount());

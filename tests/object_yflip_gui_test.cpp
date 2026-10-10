@@ -37,7 +37,7 @@ int main(int argc,char **argv){
         V_NeuronSWC segment;V_NeuronSWC_unit unit;unit.n=1;unit.type=3;unit.x=5;unit.y=6;unit.z=15;unit.parent=-1;segment.row.push_back(unit);
         child->getImageData()->tracedNeuron.seg.push_back(segment);
         FlipTestDialog dialog(w);dialog.show();
-        auto toggle=[&](int kind,int row,bool on){auto tab=dialog.table[kind];assert(tab);assert(tab->horizontalHeaderItem(tab->columnCount()-1)->text()=="Y flip");tab->item(row,tab->columnCount()-1)->setCheckState(on?Qt::Checked:Qt::Unchecked);};
+        auto toggle=[&](int kind,int row,bool on){auto tab=dialog.table[kind];assert(tab);assert(tab->horizontalHeader()->logicalIndex(0)==0);assert(tab->horizontalHeader()->logicalIndex(1)==tab->columnCount()-1);assert(tab->horizontalHeaderItem(tab->columnCount()-1)->text()=="Y flip");tab->item(row,tab->columnCount()-1)->setCheckState(on?Qt::Checked:Qt::Unchecked);};
         w->update();QApplication::processEvents();QImage before=w->grabFramebuffer();before.save("/tmp/yflip-before.png");
         toggle(stNeuronStructure,0,true);assert(r->listNeuronTree[0].yFlipDisplay && !r->listNeuronTree[1].yFlipDisplay);
         assert(r->listNeuronTree[0].listNeuron[0].y==6);
