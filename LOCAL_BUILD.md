@@ -45,3 +45,13 @@ make -C v3d_main/v3d -f Makefile -f ../../tests/object_yflip_gui_test.mk yflip-g
 # 在独立 Xvfb 显示和临时 XDG_CONFIG_HOME 下运行，避免改变日常设置：
 XDG_CONFIG_HOME="$(mktemp -d /tmp/yflip-config-XXXXXX)" LIBGL_ALWAYS_SOFTWARE=1 LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libstdc++.so.6 xvfb-run -a /tmp/vaa3d-object-yflip-gui
 ```
+
+## 系统和 Firefox 使用 Vaa3D 打开 TIFF
+
+运行 `python3 scripts/install-desktop-integration.py`，为当前用户安装 `~/.local/share/applications/vaa3d-local.desktop`，并将 `image/tiff`、`image/x-tiff` 默认程序设为 Vaa3D。安装脚本遵循 `XDG_DATA_HOME`；不需要 sudo。桌面入口通过 `scripts/open-vaa3d.sh` 将完整文件路径作为 `-i` 参数传入，支持多个文件和包含中文、空格的路径。需要 Python 3、xdg-utils、desktop-file-utils，以及已完成的本地构建；移动仓库后重新运行安装脚本。
+
+在 Firefox 的 TIFF 弹窗中选择“打开，通过 → System Handler（默认）”；可勾选“以后自动采用相同的动作”。如果 Firefox 已记住“保存文件”，在“设置 → 常规 → 应用程序 → TIFF 图像”中改为“使用系统默认应用程序”。已经打开的弹窗若仍显示旧默认程序，取消后重新点击文件链接。浏览器可能先下载临时副本再交给 Vaa3D，这属于正常行为。本配置没有修改 Firefox 配置，也不关闭现有 Vaa3D 窗口；每次调用打开一个新程序实例。
+
+安装后验证：`xdg-mime query default image/tiff` 应返回 `vaa3d-local.desktop`；`gio mime image/tiff` 应显示 Vaa3D 为默认程序。
+
+恢复此次安装前的 TIFF 默认程序：运行 `xdg-mime default org.gnome.Evince.desktop image/tiff`；对于新增的 `image/x-tiff` 默认项，从 `~/.config/mimeapps.list` 的 `[Default Applications]` 中只移除 `image/x-tiff=vaa3d-local.desktop`（若尚未被用户修改）。然后删除 `~/.local/share/applications/vaa3d-local.desktop` 并运行 `update-desktop-database ~/.local/share/applications`；保留其余 MIME 设置。若采用自定义 XDG 路径，请使用相应路径。

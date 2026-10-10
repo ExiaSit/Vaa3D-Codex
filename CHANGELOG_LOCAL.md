@@ -12,6 +12,14 @@
 
 首次补记时间：2026-10-08 21:22:07 +08:00。
 
+## local-020 — 注册 TIFF 系统打开方式与 Firefox 系统处理程序
+
+- 更新时间：2026-10-10 17:20:04 +08:00。
+- 新增用户级桌面注册脚本和启动脚本，为 Vaa3D 注册 `image/tiff`、`image/x-tiff` 并设为默认程序；桌面入口传递 `-i` 文件参数，保留路径中的空格和中文，使用本机所需的系统 C++ 运行库。
+- 已安装用户级 desktop 文件并更新 MIME 关联；原 image/tiff 默认程序为 `org.gnome.Evince.desktop`。安装脚本及 `LOCAL_BUILD.md` 提供可重装配置和恢复说明，不收录整个用户配置。Firefox 未改配置，需在弹窗选择“打开，通过 System Handler”；可自行记住选择。
+- 验证：启动脚本 Bash 语法检查、desktop-file-validate、xdg-mime/gio 默认程序查询通过；独立 Xvfb 中通过 `gio launch` 实际打开测试副本（中文和空格路径），日志确认读取 TIFF 尺寸 392×392×321、单通道。未直接点击 Firefox 弹窗进行端到端验证。本次不修改 C++，未重新编译。
+- 限制：每次打开启动新实例；浏览器可能使用下载的临时副本。安装时 desktop 数据库工具提示既有 clash-verge-handler.desktop 格式错误，该无关配置未修改；Vaa3D 注册和实际打开验证成功。保留运行中的用户窗口和其他工作区改动。
+
 ## local-019 — Y flip 移至 on/off 后的第二列
 
 - 更新时间：2026-10-10 11:37:06 +08:00。
