@@ -86,6 +86,7 @@ void V3dr_surfaceDialog::undo()
 		renderer->listCell       = listCell;
 		renderer->listMarker     = listMarker;
 
+        renderer->updateBoundingBox();
 		linkTo(glwidget);
 	}
 
@@ -538,6 +539,7 @@ void V3dr_surfaceDialog::updatedContent(QTableWidget* t) //090826
 	if (! in_batch_stack.empty() && in_batch_stack.last()==true) return; //skip until end_batch
 
 	t->resizeColumnsToContents();
+    if(renderer)renderer->updateBoundingBox();
 
 	UPDATE_VIEW(glwidget);
 	ACTIVATE(glwidget);
@@ -829,11 +831,13 @@ QTableWidget* V3dr_surfaceDialog::createTableSurf()
 
 	QStringList qsl;
 	qsl << "on/off" << "color" << "label" << "name" << "comment";
+    qsl << tr("Y flip");
 	int row = r->listLabelSurf.size();
 	int col = qsl.size();
 
 	QTableWidget* t = new QTableWidget(row,col, this);
 	t->setHorizontalHeaderLabels(qsl);
+    t->horizontalHeaderItem(col-1)->setToolTip(tr("Flip this object along Y for display only. Original coordinates are unchanged. Turn off before coordinate editing."));
 
 	//qDebug("  create begin t->rowCount = %d", t->rowCount());
 	for (int i=0; i<row; i++)
@@ -861,6 +865,7 @@ QTableWidget* V3dr_surfaceDialog::createTableSurf()
 
 		ADD_STRING( r->listLabelSurf[i].comment );
 
+        ADD_ONOFF(r->listLabelSurf[i].yFlipDisplay);
 		MESSAGE_ASSERT(j==col);
 	}
 	//qDebug("  end   t->rowCount = %d", t->rowCount());
@@ -877,6 +882,11 @@ void V3dr_surfaceDialog::pickSurf(int i, int j)
 
 	QTableWidget* t = table[stLabelSurface];
 	QTableWidgetItem *curItem = t->item(i,j);
+    if(j==t->columnCount()-1) {
+        r->listLabelSurf[i].yFlipDisplay = CHECKED_TO_BOOL(curItem->checkState());
+        updatedContent(t);return;
+    }
+
 
 	switch(j)
 	{
@@ -901,11 +911,13 @@ QTableWidget* V3dr_surfaceDialog::createTableMarker()
 
 	QStringList qsl;
 	qsl <<"on/off" << "color" << "type" << "x"<<"y"<<"z" << "name" << "comment";
+    qsl << tr("Y flip");
 	int row = r->listMarker.size();
 	int col = qsl.size();
 
 	QTableWidget* t = new QTableWidget(row,col, this);
 	t->setHorizontalHeaderLabels(qsl);
+    t->horizontalHeaderItem(col-1)->setToolTip(tr("Flip this object along Y for display only. Original coordinates are unchanged. Turn off before coordinate editing."));
 
 	//qDebug("  create begin t->rowCount = %d", t->rowCount());
 	for (int i=0; i<row; i++)
@@ -927,6 +939,8 @@ QTableWidget* V3dr_surfaceDialog::createTableMarker()
 
 		ADD_STRING( r->listMarker[i].comment );
 
+        ADD_ONOFF(r->listMarker[i].yFlipDisplay);
+        curItem->setData(Qt::UserRole,i);
 		MESSAGE_ASSERT(j==col);
 	}
 	//qDebug("  end   t->rowCount = %d", t->rowCount());
@@ -943,6 +957,13 @@ void V3dr_surfaceDialog::pickMarker(int i, int j)
 
 	QTableWidget* t = table[stImageMarker];
 	QTableWidgetItem *curItem = t->item(i,j);
+    if(j==t->columnCount()-1) {
+        const int objectIndex=curItem->data(Qt::UserRole).toInt();
+        if(objectIndex>=0 && objectIndex<r->listMarker.size())
+            r->listMarker[objectIndex].yFlipDisplay = CHECKED_TO_BOOL(curItem->checkState());
+        updatedContent(t);return;
+    }
+
 
 	switch(j)
 	{
@@ -951,8 +972,9 @@ void V3dr_surfaceDialog::pickMarker(int i, int j)
 		break;
 	case 1:
         //r->listMarker[i].color = RGBA8V(curItem->data(0));
-        listMarker[i].color = RGBA8V(curItem->data(0)); // sync
-        r->updateMarkerList(listMarker, i);
+        { QList<ImageMarker> markers=r->listMarker;
+          markers[i].color=RGBA8V(curItem->data(0));
+          r->updateMarkerList(markers,i); }
 
 		UPATE_ITEM_ICON(curItem);
 		break;
@@ -972,11 +994,13 @@ QTableWidget* V3dr_surfaceDialog::createTableSWC()
 
 	QStringList qsl;
     qsl << "on/off"  << "color" << "count" << "display mode" << "editing" << "name" << "comment"<< "file name";
+    qsl << tr("Y flip");
 	int row = (r->listNeuronTree.size());
 	int col = qsl.size();
 
 	QTableWidget* t = new QTableWidget(row,col, this);
 	t->setHorizontalHeaderLabels(qsl);
+    t->horizontalHeaderItem(col-1)->setToolTip(tr("Flip this object along Y for display only. Original coordinates are unchanged. Turn off before coordinate editing."));
 
 	qDebug("  create begin t->rowCount = %d", t->rowCount());
 	for (int i=0; i<row; i++)
@@ -1007,6 +1031,7 @@ QTableWidget* V3dr_surfaceDialog::createTableSWC()
 
 		ADD_STRING( r->listNeuronTree[i].file );
 
+        ADD_ONOFF(r->listNeuronTree[i].yFlipDisplay);
 		MESSAGE_ASSERT(j==col);
 	}
   //  qDebug("  end   t->rowCount = %d", t->rowCount());
@@ -1025,6 +1050,11 @@ void V3dr_surfaceDialog::pickSWC(int i, int j)
 
 	QTableWidget* t = table[stNeuronStructure];
 	QTableWidgetItem *curItem = t->item(i,j);
+    if(j==t->columnCount()-1) {
+        r->listNeuronTree[i].yFlipDisplay = CHECKED_TO_BOOL(curItem->checkState());
+        updatedContent(t);return;
+    }
+
 
 	switch(j)
 	{
@@ -1052,11 +1082,12 @@ QTableWidget* V3dr_surfaceDialog::createTableNeuronSegment()
 
 	V3dR_GLWidget* w = (V3dR_GLWidget*)widget;
     My4DImage* curImg = 0;       if (w) curImg = v3dr_getImage4d(r->_idep);
-    V_NeuronSWC_list* tracedNeuron = &(curImg->tracedNeuron);
+    V_NeuronSWC_list* tracedNeuron = curImg ? &(curImg->tracedNeuron) : 0;
 
 	QStringList qsl;
     //qsl <<"on/off" << "color" << "count" << "type" << "name" << "comment" <<"in file"<<"index";
     qsl <<"on/off" << "count" << "type" << "index";
+    qsl << tr("Y flip");
     int row;
     bool flag = false;
     for (int i=0; i<r->listNeuronTree.size();i++)
@@ -1069,6 +1100,7 @@ QTableWidget* V3dr_surfaceDialog::createTableNeuronSegment()
 
     QTableWidget* t = new QTableWidget(row,col, this);
 	t->setHorizontalHeaderLabels(qsl);
+    t->horizontalHeaderItem(col-1)->setToolTip(tr("Flip this object along Y for display only. Original coordinates are unchanged. Turn off before coordinate editing."));
 
 	for (int i=0; i<row; i++)
 	{
@@ -1103,6 +1135,7 @@ QTableWidget* V3dr_surfaceDialog::createTableNeuronSegment()
         curCustomItem = new CustomTableWidgetItem(tr("%1").arg(i));
         t->setItem(i, j++, curCustomItem);
 
+        ADD_ONOFF(curSeg.yFlipDisplay);
 		MESSAGE_ASSERT(j==col);
     }
 
@@ -1136,14 +1169,18 @@ void V3dr_surfaceDialog::pickNeuronSegment(int i, int j)
 
 	V3dR_GLWidget* w = (V3dR_GLWidget*)widget;
 	My4DImage* curImg = 0;       if (w) curImg = v3dr_getImage4d(r->_idep);
-	V_NeuronSWC_list* tracedNeuron = &(curImg->tracedNeuron);
+	V_NeuronSWC_list* tracedNeuron = curImg ? &(curImg->tracedNeuron) : 0;
 
-	if (i<0 || i>=tracedNeuron->nsegs())  return;
+	if (!tracedNeuron || i<0 || i>=tracedNeuron->nsegs())  return;
 
 	QTableWidget* t = table[stNeuronSegment];
 	QTableWidgetItem *curItem = t->item(i,j);
 
     int index = t->item(i,3)->text().toInt();
+    if(j==t->columnCount()-1 && index>=0 && index<tracedNeuron->nsegs()) {
+        tracedNeuron->seg[index].yFlipDisplay=CHECKED_TO_BOOL(curItem->checkState());
+        updatedContent(t);return;
+    }
 
 	switch(j)
 	{
@@ -1173,11 +1210,13 @@ QTableWidget* V3dr_surfaceDialog::createTableAPO()
 
 	QStringList qsl;
 	qsl <<"on/off" << "color" << "x"<<"y"<<"z" <<"intensity" <<"volume" << "name" << "comment" <<"in file";
+    qsl << tr("Y flip");
 	int row = r->listCell.size();
 	int col = qsl.size();
 
 	QTableWidget* t = new QTableWidget(row,col, this);
 	t->setHorizontalHeaderLabels(qsl);
+    t->horizontalHeaderItem(col-1)->setToolTip(tr("Flip this object along Y for display only. Original coordinates are unchanged. Turn off before coordinate editing."));
 
 	//qDebug("  create begin t->rowCount = %d", t->rowCount());
 	for (int i=0; i<row; i++)
@@ -1203,6 +1242,7 @@ QTableWidget* V3dr_surfaceDialog::createTableAPO()
 
 		ADD_STRING( r->map_CellIndex_APOFile.value(i) );
 
+        ADD_ONOFF(r->listCell[i].yFlipDisplay);
 		MESSAGE_ASSERT(j==col);
 	}
 	//qDebug("  end   t->rowCount = %d", t->rowCount());
@@ -1221,6 +1261,11 @@ void V3dr_surfaceDialog::pickAPO(int i, int j)
 
 	QTableWidget* t = table[stPointCloud];
 	QTableWidgetItem *curItem = t->item(i,j);
+    if(j==t->columnCount()-1) {
+        r->listCell[i].yFlipDisplay = CHECKED_TO_BOOL(curItem->checkState());
+        updatedContent(t);return;
+    }
+
 
 	switch(j)
 	{
@@ -1245,11 +1290,13 @@ QTableWidget* V3dr_surfaceDialog::createTableAPO_Set()
 
 	QStringList qsl;
 	qsl <<"on/off" << "color"<< "count"  << "set/class name" << "comment"  << "file name";
+    qsl << tr("Y flip");
 	int row = r->map_APOFile_IndexList.size();
 	int col = qsl.size();
 
 	QTableWidget* t = new QTableWidget(row,col, this);
 	t->setHorizontalHeaderLabels(qsl);
+    t->horizontalHeaderItem(col-1)->setToolTip(tr("Flip this object along Y for display only. Original coordinates are unchanged. Turn off before coordinate editing."));
 
 	//qDebug("  create begin t->rowCount = %d", t->rowCount());
 
@@ -1278,6 +1325,7 @@ QTableWidget* V3dr_surfaceDialog::createTableAPO_Set()
 
 		ADD_STRING( apoSetNameList[i] );
 
+        ADD_ONOFF(r->listCell[cind[0]].yFlipDisplay);
 		MESSAGE_ASSERT(j==col);
 	}
 	//qDebug("  end   t->rowCount = %d", t->rowCount());
@@ -1298,6 +1346,15 @@ void V3dr_surfaceDialog::pickAPO_Set(int i, int j)
 	QTableWidgetItem *curItem = t->item(i,j);
 
 	QList<int> cind;
+    if(j==t->columnCount()-1) {
+        const QList<int> members=r->map_APOFile_IndexList.value(r->map_APOFile_IndexList.keys()[i]);
+        for(int member:members) {
+            r->listCell[member].yFlipDisplay=CHECKED_TO_BOOL(curItem->checkState());
+            table[stPointCloud]->item(member,table[stPointCloud]->columnCount()-1)->setCheckState(curItem->checkState());
+        }
+        updatedContent(t);return;
+    }
+
 	if (j==0 || j==1)
 	{
 		QList <QString> apoSetNameList = r->map_APOFile_IndexList.keys();
@@ -1573,7 +1630,7 @@ void V3dr_surfaceDialog::editNeuronSegmentType()
     V3dR_GLWidget* w = (V3dR_GLWidget*)widget;
     My4DImage* curImg = 0;
     if (w) curImg = v3dr_getImage4d(r->_idep);
-    V_NeuronSWC_list* tracedNeuron = &(curImg->tracedNeuron);
+    V_NeuronSWC_list* tracedNeuron = curImg ? &(curImg->tracedNeuron) : 0;
 
     int row, col;
     col = 4; // on/off count type index

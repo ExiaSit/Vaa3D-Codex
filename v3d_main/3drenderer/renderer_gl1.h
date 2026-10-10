@@ -50,6 +50,7 @@ Peng, H, Ruan, Z., Atasoy, D., and Sternson, S. (2010) Automatic reconstruction 
 #ifndef V3D_RENDERER_TEX2_H
 #define V3D_RENDERER_TEX2_H
 
+#include "../basic_c_fun/ObjectDisplayTransform.h"
 #include "renderer.h"
 #include "marchingcubes.h"
 #include <time.h>
@@ -92,6 +93,8 @@ public:
 	virtual const int class_version() {return 1;}
 
 public:
+    double objectYFlipSum() const { return size4>0 ? dataBox.y0+dataBox.y1 : surfBoundingBox.y0+surfBoundingBox.y1; }
+    double objectDisplayY(double y,bool flip) const { return objectDisplayYCoordinate(y,objectYFlipSum(),flip); }
 // link to Data
 	virtual void setupData(void* data);
 	virtual void cleanData();                      // makeCurrent

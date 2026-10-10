@@ -71,9 +71,10 @@ struct BasicSurfObj
 	RGBA8 color;
 	bool on;
 	bool selected;
+    bool yFlipDisplay; // Runtime display state only; never written to geometry files.
 	QString name;
 	QString comment;
-	BasicSurfObj() {n=0; color.r=color.g=color.b=color.a=255; on=true;selected=false; name=comment="";}
+	BasicSurfObj() {n=0; color.r=color.g=color.b=color.a=255; on=true;selected=false;yFlipDisplay=false; name=comment="";}
 };
 
 // .marker marker files
@@ -180,7 +181,7 @@ struct NeuronTree : public BasicSurfObj
 
     void deepCopy(const NeuronTree p)
     {
-        n=p.n; color=p.color; on=p.on;
+        n=p.n; color=p.color; on=p.on; yFlipDisplay=p.yFlipDisplay;
         selected=p.selected; name=p.name; comment=p.comment;
 
         file     = p.file;

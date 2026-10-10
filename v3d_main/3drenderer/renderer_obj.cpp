@@ -842,6 +842,17 @@ void Renderer_gl1::updateBoundingBox()
 	sBB.expand(swcBB);			//qDebug("	 BoundingBox (%g %g %g)--(%g %g %g)", sBB.x0,sBB.y0,sBB.z0, sBB.x1,sBB.y1,sBB.z1 );
 	sBB.expand(apoBB);			//qDebug("	 BoundingBox (%g %g %g)--(%g %g %g)", sBB.x0,sBB.y0,sBB.z0, sBB.x1,sBB.y1,sBB.z1 );
 	sBB.expand(labelBB);		//qDebug("	 BoundingBox (%g %g %g)--(%g %g %g)", sBB.x0,sBB.y0,sBB.z0, sBB.x1,sBB.y1,sBB.z1 );
+    bool mirrored=false;
+    for(const NeuronTree &tree:listNeuronTree)mirrored=mirrored||tree.yFlipDisplay;
+    for(const LabelSurf &surface:listLabelSurf)mirrored=mirrored||surface.yFlipDisplay;
+    for(const CellAPO &cell:listCell)mirrored=mirrored||cell.yFlipDisplay;
+    const My4DImage *image=v3dr_getImage4d(_idep);
+    if(image)for(const V_NeuronSWC &segment:image->tracedNeuron.seg)mirrored=mirrored||segment.yFlipDisplay;
+    if(mirrored && sBB.y0<=sBB.y1) {
+        const double sum=objectYFlipSum();
+        BoundingBox flipped=sBB;flipped.y0=sum-sBB.y1;flipped.y1=sum-sBB.y0;
+        sBB.expand(flipped); // Display clipping must also contain mirrored geometry.
+    }
 	if (!has_image())// only surface object
 	{
 		//qDebug("	!have_image");
@@ -1298,7 +1309,7 @@ void Renderer_gl1::drawMarkerList()
 						S.color;
 			glColor3ubv(color.c);
 			glPushMatrix();
-			glTranslated(S.x-1, S.y-1, S.z-1); // 090505 RZC : marker position is 1-based
+			glTranslated(S.x-1, objectDisplayY(S.y-1,S.yFlipDisplay), S.z-1); // 090505 RZC : marker position is 1-based
 			glScaled(marker_size, marker_size, marker_size);
 			//glScaled(marker_size/thicknessX, marker_size/thicknessY, marker_size/thicknessZ); // 090421 RZC: shape adjusted with image thickness
 			glPushName(1+i);
@@ -1328,7 +1339,7 @@ void Renderer_gl1::drawMarkerList()
 			const ImageMarker& S = listMarker[i];
 			if (! S.on)	continue;
 			glPushMatrix();
-			glTranslated(S.x-1, S.y-1, S.z-1); // 090505 RZC : marker position is 1-based
+			glTranslated(S.x-1, objectDisplayY(S.y-1,S.yFlipDisplay), S.z-1); // 090505 RZC : marker position is 1-based
 #if defined(USE_Qt5)
 #else
 			((QGLWidget*)widget)->renderText(0., 0., 0., QString("%1").arg(i+1));
@@ -1356,7 +1367,7 @@ void Renderer_gl1::drawMarkerList()
 			const ImageMarker& S = listMarker[i];
 			if (! S.on)	continue;
 			glPushMatrix();
-			glTranslated(S.x-1, S.y-1, S.z-1);
+			glTranslated(S.x-1, objectDisplayY(S.y-1,S.yFlipDisplay), S.z-1);
 			QFont font;
 			font.setPointSize(10);
 			QString mystr = S.name.trimmed();
@@ -1452,7 +1463,7 @@ void Renderer_gl1::drawCellList()
 			//RGBA8 color = XYZW(S.color)*ms;  // 081213
 			float d = 2.0*pow(S.volsize/3.1415926*0.75, 1/3.0);		
 			glPushMatrix();
-			glTranslatef(S.x, S.y, S.z);
+			glTranslatef(S.x, objectDisplayY(S.y,S.yFlipDisplay), S.z);
 #ifdef _YUN_
 			glScalef(marker_size, marker_size, marker_size);
 #else
@@ -1490,7 +1501,7 @@ void Renderer_gl1::drawCellList()
 			if (! S.on)	continue;
 			if (S.name.isEmpty()) continue;
 			glPushMatrix();
-			glTranslatef(S.x, S.y, S.z);
+			glTranslatef(S.x, objectDisplayY(S.y,S.yFlipDisplay), S.z);
 			//qDebug()<<" cellName = "<<S.name <<"\n";
 #if defined(USE_Qt5)
 #else
@@ -1858,7 +1869,8 @@ void Renderer_gl1::updateNeuronTree(V_NeuronSWC & seg)
 			{
 				contained = true;
 				SS.n = 1+i;
-				listNeuronTree.replace(i, SS); //090117 use overwrite  by PHC
+				SS.yFlipDisplay=listNeuronTree[i].yFlipDisplay;
+                listNeuronTree.replace(i, SS); //090117 use overwrite  by PHC
 				break;
 			}
         if (!contained
@@ -2469,6 +2481,7 @@ void Renderer_gl1::drawNeuronTree(int index)
      // for neuron color: same as neuron label color (ZJL)
      GLubyte neuronColor[3];
 	if (! on) return;
+    const My4DImage *displayImage = editable ? v3dr_getImage4d(_idep) : 0;
     time_t seconds = time(NULL);
 //  for debug ////////////////////////////
 //	if (listNeuron.size()<=0) return;
@@ -2514,6 +2527,10 @@ void Renderer_gl1::drawNeuronTree(int index)
 			}
 		}
 		if (! valid)  continue;
+        bool flipped = listNeuronTree.at(index).yFlipDisplay;
+        if(displayImage && S1.seg_id>=0 && S1.seg_id<(V3DLONG)displayImage->tracedNeuron.seg.size())
+            flipped = flipped != displayImage->tracedNeuron.seg[S1.seg_id].yFlipDisplay;
+        S0.y=objectDisplayY(S0.y,flipped);S1.y=objectDisplayY(S1.y,flipped);
 		//drawNeuronTube + TubeEnd
 		glPushMatrix();
 		{

@@ -586,12 +586,20 @@ void Renderer_gl1::drawLabelfieldSurf()
 
 			glColor4ubv(S.color.c);
 
+            glPushMatrix();
+            glPushAttrib(GL_POLYGON_BIT);
+            if(S.yFlipDisplay) {
+                glTranslated(0,objectYFlipSum(),0);glScaled(1,-1,1);
+                GLint winding;glGetIntegerv(GL_FRONT_FACE,&winding);
+                glFrontFace(winding==GL_CW?GL_CCW:GL_CW);
+            }
 			glPushName(1+i);
 			if (compiledLabelSurf)
 				glCallList(list_glistLabel[i]);
 			else
 				RENDER_TRIANGLES(list_listTriangle[i]);
 			glPopName();
+            glPopAttrib();glPopMatrix();
 
 			if (S.selected) HIGHLIGHT_OFF();
 		}
