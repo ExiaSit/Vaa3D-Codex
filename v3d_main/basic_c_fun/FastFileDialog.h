@@ -8,6 +8,8 @@
 #include <QLineEdit>
 #include <QPushButton>
 #include <QListWidget>
+#include <QScrollBar>
+#include <QWheelEvent>
 #include <QLabel>
 #include <QComboBox>
 #include <QCheckBox>
@@ -163,6 +165,22 @@ class FastFileDialog : public QDialog
         status->setText(QString::fromUtf8("共 %1 项 · 第 %2 / %3 页（每页 %4 项）").arg(matches.size()).arg(page+1).arg(qMax(1,(matches.size()+pageSize-1)/pageSize)).arg(pageSize));
         setProperty("matchingEntries",matches.size());
     }
+protected:
+    bool eventFilter(QObject *object,QEvent *event) override {
+        if(object==list->viewport() && event->type()==QEvent::Wheel) {
+            auto wheel=static_cast<QWheelEvent*>(event);
+            const int delta=wheel->pixelDelta().isNull()?wheel->angleDelta().y():wheel->pixelDelta().y();
+            auto bar=list->verticalScrollBar();
+            // Let Qt scroll normally within a page; cross pages only at an edge.
+            if(delta<0 && bar->value()==bar->maximum() && next->isEnabled()) {
+                ++page;renderPage();list->scrollToTop();wheel->accept();return true;
+            }
+            if(delta>0 && bar->value()==bar->minimum() && previous->isEnabled()) {
+                --page;renderPage();list->scrollToBottom();wheel->accept();return true;
+            }
+        }
+        return QDialog::eventFilter(object,event);
+    }
 public:
     FastFileDialog(QWidget *parent,const QString &title,const QString &directory,const QString &nameFilter,bool onlyDirs):QDialog(parent),directoriesOnly(onlyDirs) {
         setObjectName("fastFileDialog");setWindowTitle(title.isEmpty()?QString::fromUtf8("选择文件"):title);resize(820,580);
@@ -174,7 +192,9 @@ public:
         auto options=new QHBoxLayout;layout->addLayout(options);
         searchEdit=new QLineEdit;searchEdit->setObjectName("fastSearch");searchEdit->setPlaceholderText(QString::fromUtf8("搜索当前目录中的文件名"));
         hidden=new QCheckBox(QString::fromUtf8("显示隐藏项"));options->addWidget(searchEdit,1);options->addWidget(hidden);
-        list=new QListWidget;list->setObjectName("fastEntries");list->setUniformItemSizes(true);layout->addWidget(list,1);
+        list=new QListWidget;list->setObjectName("fastEntries");list->setUniformItemSizes(true);
+        list->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
+        list->viewport()->installEventFilter(this);layout->addWidget(list,1);
         folderIcon=style()->standardIcon(QStyle::SP_DirIcon);fileIcon=style()->standardIcon(QStyle::SP_FileIcon);
         auto pages=new QHBoxLayout;layout->addLayout(pages);status=new QLabel;status->setObjectName("fastStatus");status->setWordWrap(true);
         previous=new QPushButton(QString::fromUtf8("上一页"));next=new QPushButton(QString::fromUtf8("下一页"));previous->setObjectName("fastPrevious");next->setObjectName("fastNext");pages->addWidget(status,1);pages->addWidget(previous);pages->addWidget(next);

@@ -54,6 +54,26 @@ int main(int argc,char **argv) {
   QSettings saved("HHMI","Vaa3D");auto history=saved.value("FastFileDialog/recentFiles").toStringList();
   assert(history.size()==20 && history.first()==unicode.fileName());
  }
+ {
+  FastFileDialog d(0,"Wheel paging",temp.path(),"TIFF (*.tif)",false);loaded(d);d.show();QApplication::processEvents();
+  auto list=d.findChild<QListWidget*>("fastEntries");auto bar=list->verticalScrollBar();
+  auto wheel=[&](int angle,int pixels=0){
+   QPointF pos(20,20);QWheelEvent e(pos,list->viewport()->mapToGlobal(pos.toPoint()),QPoint(0,pixels),QPoint(0,angle),Qt::NoButton,Qt::NoModifier,Qt::NoScrollPhase,false);
+   QApplication::sendEvent(list->viewport(),&e);QApplication::processEvents();
+  };
+  QString first=list->item(0)->text();assert(bar->maximum()>0);
+  wheel(-120);assert(bar->value()>0 && list->item(0)->text()==first);
+  wheel(120);assert(bar->value()==0);wheel(120);assert(list->item(0)->text()==first);
+  list->scrollToBottom();wheel(-120);assert(list->item(0)->text()!=first && bar->value()==0);
+  QString second=list->item(0)->text();
+  wheel(120);assert(list->item(0)->text()==first && bar->value()==bar->maximum());
+  wheel(-120);assert(list->item(0)->text()==second);
+  list->scrollToBottom();wheel(0,-25);assert(list->count()==206 && bar->value()==0);
+  QString last=list->item(0)->text();list->scrollToBottom();wheel(-120);assert(list->item(0)->text()==last);
+  list->scrollToTop();wheel(0,25);assert(list->item(0)->text()==second && bar->value()==bar->maximum());
+  d.findChild<QLineEdit*>("fastFilename")->setText("image_0500.tif");
+  d.findChild<QPushButton*>("fastOpen")->click();assert(d.selectedFile()==dir.filePath("image_0500.tif"));
+ }
  {FastFileDialog cancelled(0,"Cancel",temp.path(),QString(),false);cancelled.reject();}
  QApplication::processEvents();std::cout<<"Fast file dialog tests passed\n";
 }
