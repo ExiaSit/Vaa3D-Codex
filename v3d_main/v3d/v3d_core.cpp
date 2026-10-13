@@ -6172,12 +6172,23 @@ void XFormWidget::cascadeWindows()
 void XFormWidget::createMenuOf3DViewer()
 {
     QAction* Act;
+#if QT_VERSION >= QT_VERSION_CHECK(5, 1, 0)
+    menu3DViewer.setToolTipsVisible(true);
+#endif
 
     Act = new QAction(tr("Entire image"), this);
+    Act->setToolTip(QString::fromUtf8(
+        "整幅图像：显示当前图像的全部三维范围，适合查看整体结构。\n"
+        "不受二维视图中 ROI 选区的限制。"));
     connect(Act, SIGNAL(triggered()), this, SLOT(doImage3DView()));
     menu3DViewer.addAction(Act);
 
     Act = new QAction(tr("Region of Interest"), this);
+    Act->setToolTip(QString::fromUtf8(
+        "局部区域（ROI）：显示二维视图中圈选范围对应的三维长方体，适合查看局部细节。\n"
+        "先在 XY、YZ 或 ZX 视图圈选 ROI；多个视图共同限制范围，未圈选的视图按完整范围处理。\n"
+        "使用选区包围框，不沿多边形轮廓精确裁切。未设置 ROI 时通常与整幅图像相同。\n"
+        "只改变查看范围，不修改原始图像文件。"));
     connect(Act, SIGNAL(triggered()), this, SLOT(doImage3DLocalRoiView()));
     menu3DViewer.addAction(Act);
 }
