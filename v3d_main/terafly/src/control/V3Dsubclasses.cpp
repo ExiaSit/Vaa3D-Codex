@@ -116,21 +116,17 @@ void myV3dR_GLWidget::wheelEventO(QWheelEvent *event)
 
     this->setFocus(); // accept KeyPressEvent, by RZC 081028
 
-    float d = (event->delta())/100;  // ~480
-    #define MOUSE_ZOOM(dz)    (int(dz*4* MOUSE_SENSITIVE));
-    #define MOUSE_ZROT(dz)    (int(dz*8* MOUSE_SENSITIVE));
-
-    int zoomStep = MOUSE_ZOOM(d);
-    int zRotStep = MOUSE_ZROT(d);
-
-    if (QApplication::keyboardModifiers() == Qt::ShiftModifier) // shift+mouse control view space translation, 081104
-    {
-        this->viewRotation(0, 0, zRotStep);
-    }
-    else if (QApplication::keyboardModifiers()==Qt::AltModifier || QApplication::keyboardModifiers()==ALT2_MODIFIER) // alt+mouse control model space rotation, 081104
-    {
-        this->modelRotation(0, 0, zRotStep);
-    }
+    if(!renderer) {event->ignore();return;}
+    const Qt::KeyboardModifiers modifiers=event->modifiers();
+    const int mode=modifiers==Qt::ShiftModifier ? 1 :
+        (modifiers==Qt::AltModifier || modifiers==ALT2_MODIFIER ? 2 : 0);
+    const int step=wheelSteps.take(event,mode,MOUSE_SENSITIVE);
+    if(!step) {event->accept();return;}
+    const int zoomStep=step;
+    if(mode==1)
+        viewRotation(0,0,step);
+    else if(mode==2)
+        modelRotation(0,0,step);
     else // default
     {
         (this->renderer->hitWheel(event->x(), event->y())); //by PHC, 130424. record the wheel location when zoom-in or out

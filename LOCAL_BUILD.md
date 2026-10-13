@@ -55,3 +55,7 @@ XDG_CONFIG_HOME="$(mktemp -d /tmp/yflip-config-XXXXXX)" LIBGL_ALWAYS_SOFTWARE=1 
 安装后验证：`xdg-mime query default image/tiff` 应返回 `vaa3d-local.desktop`；`gio mime image/tiff` 应显示 Vaa3D 为默认程序。
 
 恢复此次安装前的 TIFF 默认程序：运行 `xdg-mime default org.gnome.Evince.desktop image/tiff`；对于新增的 `image/x-tiff` 默认项，从 `~/.config/mimeapps.list` 的 `[Default Applications]` 中只移除 `image/x-tiff=vaa3d-local.desktop`（若尚未被用户修改）。然后删除 `~/.local/share/applications/vaa3d-local.desktop` 并运行 `update-desktop-database ~/.local/share/applications`；保留其余 MIME 设置。若采用自定义 XDG 路径，请使用相应路径。
+
+## 三维滚轮缩放回归
+
+完成常规构建后，运行 `make -C v3d_main/v3d -f Makefile -f ../../tests/wheel_zoom_gui_test.mk wheel-zoom-gui-test`。随后在独立 Xvfb、临时 `XDG_CONFIG_HOME` 和系统 `LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libstdc++.so.6` 下运行 `/tmp/vaa3d-wheel-zoom-gui`；输出 `WHEEL_ZOOM_GUI_PASS` 表示通过。测试使用合成 32³ 图像，检查微小滚轮增量累积、像素滚动、焦点、修饰键、缩放边界及滑条反馈。TeraFly 的跨分辨率切换不在此回归覆盖范围。

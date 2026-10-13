@@ -39,6 +39,7 @@ Peng, H, Ruan, Z., Atasoy, D., and Sternson, S. (2010) Automatic reconstruction 
 #define V3DR_GLWIDGET_H
 
 #include "v3dr_common.h"
+#include "WheelStepAccumulator.h"
 #include "renderer.h"
 #include "../basic_c_fun/basic_view3d.h"
 
@@ -160,6 +161,7 @@ public:
     virtual bool event(QEvent* e);       //090427 RZC:  for QHelpEvent of ToolTip
     virtual void customEvent(QEvent* e); // for QEvent_OpenFiles, by RZC 081002
 
+    WheelStepAccumulator wheelSteps;
     iDrawExternalParameter* _idep;
     QWidget *mainwindow;
 	Renderer* renderer;
