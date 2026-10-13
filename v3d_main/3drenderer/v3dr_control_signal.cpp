@@ -1503,7 +1503,7 @@ QSpinBox *V3dR_MainWindow::createRotateSpinBox()
 {
 	QSpinBox *box = new QSpinBox;
 	box->setRange(0, 360);
-	box->setSuffix("\xB0");
+	box->setSuffix(QString(QChar(0x00B0))); // Explicit Unicode degree sign.
 	return box;
 }
 
