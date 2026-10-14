@@ -1536,6 +1536,18 @@ QRect XFormView::getRoiBoundingRect()
 		return roiPolygon.boundingRect();
 }
 
+void XFormView::setDisplayGeometry(int width, int height, double scale)
+{
+    // Preserve the image-space pan position when the viewport changes size.
+    const double ratio=disp_scale>0 ? scale/disp_scale : 1;
+    curDisplayCenter*=ratio;
+    curDisplayCenter0*=ratio;
+    disp_width=width;disp_height=height;disp_scale=scale;
+    if(m_scale<=1)curDisplayCenter=QPointF(width/2.0,height/2.0);
+    setFixedSize(width,height);
+    update();
+}
+
 QPointF	 XFormView::mouseEventToImageCoords(const QPoint& p)
 {
 	return	QPointF(
@@ -2996,6 +3008,9 @@ XFormWidget::XFormWidget(QWidget *parent, Qt::WidgetAttribute f) : QWidget(paren
 
 void XFormWidget::initialize()
 {
+#if defined(USE_Qt5)
+    triViewCanvas=0;autoFitTriViews=true;
+#endif
     imgData = 0;
     openFileNameLabel = QString(""); //"/Users/hanchuanpeng/work/v3d/test1.raw"
 
@@ -3330,6 +3345,11 @@ void XFormWidget::cleanData()
 
 void XFormWidget::changeEvent(QEvent* e)
 {
+#if defined(USE_Qt5)
+    QMdiSubWindow::changeEvent(e);
+#else
+    QWidget::changeEvent(e);
+#endif
 	//qDebug() <<"XFormWidget::changeEvent" <<e->type() <<windowTitle();
 	if (e->type()==QEvent::ActivationChange && isActiveWindow())  //NO effect to MDI child widget !!!
 	{
@@ -3341,6 +3361,11 @@ void XFormWidget::changeEvent(QEvent* e)
 }
 void XFormWidget::hideEvent(QHideEvent* e)
 {
+#if defined(USE_Qt5)
+    QMdiSubWindow::hideEvent(e);
+#else
+    QWidget::hideEvent(e);
+#endif
 	if (channelTabGlass)  channelTabGlass->hide();
 }
 
@@ -4220,11 +4245,29 @@ void XFormWidget::createGUI()
 //    allLayout->addWidget(mainGroup);
 
     xyzViewLayout = new QGridLayout(viewGroup);
-    xyzViewLayout->addWidget(xy_view, 0, 0, 1, 1, Qt::AlignRight | Qt::AlignBottom);
-    xyzViewLayout->addWidget(yz_view, 0, 1, 1, 1, Qt::AlignLeft | Qt::AlignBottom);
-    xyzViewLayout->addWidget(zx_view, 1, 0, 1, 1, Qt::AlignRight | Qt::AlignTop);
-	xyzViewLayout->update();//061014
-	//xyzViewLayout->addWidget(focusPointFeatureWidget, 2, 0, 1, 2, Qt::AlignLeft | Qt::AlignBottom);
+#if defined(USE_Qt5)
+    // An unconstrained canvas lets the MDI window shrink independently of image size.
+    class TriViewCanvas : public QWidget {
+    public:
+        explicit TriViewCanvas(QWidget *parent):QWidget(parent) {}
+        QSize sizeHint() const override {return QSize(600,450);}
+    };
+    triViewCanvas=new TriViewCanvas(viewGroup);
+    triViewCanvas->setObjectName("triViewCanvas");
+    triViewCanvas->setMinimumSize(100,100);
+    triViewCanvas->setSizePolicy(QSizePolicy::Expanding,QSizePolicy::Expanding);
+    xyzViewLayout->addWidget(triViewCanvas,0,0);
+    xy_view->setParent(triViewCanvas);yz_view->setParent(triViewCanvas);zx_view->setParent(triViewCanvas);
+    xy_view->setObjectName("triViewXY");yz_view->setObjectName("triViewZY");zx_view->setObjectName("triViewXZ");
+    triViewCanvas->installEventFilter(this);
+    focusPointFeatureWidget->setMinimumWidth(0);
+    focusPointFeatureWidget->setMaximumWidth(QWIDGETSIZE_MAX);
+    focusPointFeatureWidget->setFixedHeight(130);
+#else
+    xyzViewLayout->addWidget(xy_view,0,0,1,1,Qt::AlignRight|Qt::AlignBottom);
+    xyzViewLayout->addWidget(yz_view,0,1,1,1,Qt::AlignLeft|Qt::AlignBottom);
+    xyzViewLayout->addWidget(zx_view,1,0,1,1,Qt::AlignRight|Qt::AlignTop);
+#endif
 
 
     infoGroupLayout = new QVBoxLayout(infoGroup);
@@ -4443,6 +4486,7 @@ void XFormWidget::updateDataRelatedGUI()
 		zx_view->setFixedHeight(zx_view->get_disp_height());
 		imgData->set_zx_view(zx_view);
 
+#if !defined(USE_Qt5)
 		if (b_use_dispzoom)
 		{
 			focusPointFeatureWidget->setFixedWidth(qMax(200, int(imgData->getXDim()*disp_zoom+imgData->getZDim()*disp_zoom)));
@@ -4452,6 +4496,7 @@ void XFormWidget::updateDataRelatedGUI()
 			focusPointFeatureWidget->setFixedWidth(qMax(200, int(imgData->getXDim()+imgData->getZDim())));
 		}
 		focusPointFeatureWidget->setMinimumHeight(100);
+#endif
 		imgData->setFocusFeatureView((MyTextBrowser*)focusPointFeatureWidget);
 
 		imgData->setMainWidget((XFormWidget *)this);
@@ -4584,6 +4629,10 @@ void XFormWidget::updateDataRelatedGUI()
 		emit external_focusZChanged(imgData->getZDim()>>1);
 	}
 
+#if defined(USE_Qt5)
+    layoutTriViews();
+    QTimer::singleShot(0,this,[this](){layoutTriViews();});
+#else
 	//110801 RZC, fixed MDI window resize
 	{
 		QWidget* w = parentWidget(); // MDI child wrapper widget
@@ -4594,6 +4643,8 @@ void XFormWidget::updateDataRelatedGUI()
 //	updateGeometry(); //seems no need
 	adjustSize();
 	allLayout->update();
+
+#endif
 
 	update();
 }
@@ -6092,9 +6143,59 @@ void XFormWidget::launchAtlasViewer(int curTab)
 	atlasViewerDlg->setCurTab(curTab); // 090504 RZC
 }
 
+#if defined(USE_Qt5)
+bool XFormWidget::eventFilter(QObject *object,QEvent *event)
+{
+    if(object==triViewCanvas && event->type()==QEvent::Resize)layoutTriViews();
+    return QMdiSubWindow::eventFilter(object,event);
+}
+void XFormWidget::fitTriviewToWindow()
+{
+    autoFitTriViews=true;
+    triViewCanvas->setMinimumSize(100,100);
+    layoutTriViews();
+}
+void XFormWidget::layoutTriViews()
+{
+    if(!triViewCanvas || !imgData || !imgData->valid())return;
+    const double x=imgData->getXDim(),y=imgData->getYDim(),z=imgData->getZDim();
+    const int gap=8;
+    const double fit=qMin(qMax(1,triViewCanvas->width()-gap)/(x+z),
+                          qMax(1,triViewCanvas->height()-gap)/(y+z));
+    if(autoFitTriViews)disp_zoom=fit;
+    disp_zoom=qMax(0.000001,disp_zoom);
+    b_use_dispzoom=qAbs(disp_zoom-1)>0.000001;
+    const int w=qMax(1,int(x*disp_zoom)),h=qMax(1,int(y*disp_zoom)),d=qMax(1,int(z*disp_zoom));
+    if(!autoFitTriViews)triViewCanvas->setMinimumSize(w+d+gap,h+d+gap);
+    xy_view->setDisplayGeometry(w,h,disp_zoom);
+    yz_view->setDisplayGeometry(d,h,disp_zoom);
+    zx_view->setDisplayGeometry(w,d,disp_zoom);
+    xy_view->move(0,0);yz_view->move(w+gap,0);zx_view->move(0,h+gap);
+    zoomWholeViewButton->setText(autoFitTriViews
+        ? QString::fromUtf8("自动适应：%1×（点击设置）").arg(disp_zoom,0,'f',2)
+        : QString("Tri-view zoom=%1. Click to set.").arg(disp_zoom));
+    // Refresh only the cached scale text; do not reslice data or reset the focus.
+    QString info=focusPointFeatureWidget->getFocusFeatureViewTextContent();
+    const QString oldInfo=info;
+    info.replace(QRegExp("Tri-view zoom: [^<]*"),QString("Tri-view zoom: %1").arg(disp_zoom));
+    if(info!=oldInfo) {
+        focusPointFeatureWidget->setFocusFeatureViewTextContent(info);
+        focusPointFeatureWidget->setText2FocusPointFeatureWidget();
+    }
+}
+#endif
+
 void XFormWidget::createMenuOfTriviewZoom()
 {
     QAction* Act;
+
+#if defined(USE_Qt5)
+    Act = new QAction(QString::fromUtf8("自动适应窗口"),this);
+    Act->setToolTip(QString::fromUtf8("随窗口尺寸变化，按相同比例缩放三个切面。选择固定倍率后可用此项恢复。"));
+    connect(Act,SIGNAL(triggered()),this,SLOT(fitTriviewToWindow()));
+    menuTriviewZoom.addAction(Act);
+    menuTriviewZoom.addSeparator();
+#endif
 
     Act = new QAction(tr("Zoom &In"), this);
     connect(Act, SIGNAL(triggered()), this, SLOT(triview_zoomin()));
@@ -6152,6 +6253,13 @@ void XFormWidget::triview_zoomhalf()
 
 void XFormWidget::triview_setzoom(double z, bool b_multiply) //b_multiply determine is z is the target zoom, or the target zoom should be product of the current zoom multply z
 {
+#if defined(USE_Qt5)
+    autoFitTriViews=false;
+    disp_zoom=b_multiply?disp_zoom*z:z;
+    layoutTriViews();
+    return;
+#endif
+
 	if (b_multiply)
 		disp_zoom *= z;
 	else

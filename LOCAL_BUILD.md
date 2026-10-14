@@ -61,3 +61,9 @@ XDG_CONFIG_HOME="$(mktemp -d /tmp/yflip-config-XXXXXX)" LIBGL_ALWAYS_SOFTWARE=1 
 完成常规构建后，运行 `make -C v3d_main/v3d -f Makefile -f ../../tests/wheel_zoom_gui_test.mk wheel-zoom-gui-test`。随后在独立 Xvfb、临时 `XDG_CONFIG_HOME` 和系统 `LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libstdc++.so.6` 下运行 `/tmp/vaa3d-wheel-zoom-gui`；输出 `WHEEL_ZOOM_GUI_PASS` 表示通过。测试使用合成 32³ 图像，检查微小滚轮增量累积、像素滚动、焦点、修饰键、缩放边界及滑条反馈。TeraFly 的跨分辨率切换不在此回归覆盖范围。
 
 桌面图标与程序窗口使用同一 Vaa3D logo；程序嵌入 256×256 图标，主窗口和三维窗口自动继承。Linux 桌面入口的 `StartupWMClass=vaa3d` 与窗口类型匹配，Qt desktop file name 为 `vaa3d-local`，用于任务栏识别。更新图标设置后运行桌面安装脚本并启动新版即可生效。
+
+## 二维三视图自适应与窗口状态回归
+
+Qt 5 默认让三个切面按统一比例适应窗口。固定倍率仍可从三视图缩放菜单选择；选固定倍率后，再选择“自动适应窗口”恢复自适应。缩放保持原始图像、ROI 与切片位置。
+
+完成常规构建后运行 `make -C v3d_main/v3d -f Makefile -f ../../tests/triview_resize_gui_test.mk triview-resize-gui-test`。在独立 Xvfb 和临时 `XDG_CONFIG_HOME` 下运行 `/tmp/vaa3d-triview-resize-gui`（本机需 `LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libstdc++.so.6`），输出 `TRIVIEW_RESIZE_PASS` 表示通过。测试验证标题栏点击、还原、大小变化、坐标/ROI/切片保持、手动倍率与自动适应及面板折叠，并在 `/tmp` 保存大小窗口截图。

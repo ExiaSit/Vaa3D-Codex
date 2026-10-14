@@ -225,6 +225,12 @@ public:
      ImageMapView mapview; // mapview
 
 protected:
+#if defined(USE_Qt5)
+    QWidget *triViewCanvas;
+    bool autoFitTriViews;
+    void layoutTriViews();
+    bool eventFilter(QObject *object, QEvent *event) override;
+#endif
 	virtual void changeEvent(QEvent* e);    //110802 RZC
 	virtual void hideEvent(QHideEvent * e); //110808 RZC
 
@@ -317,6 +323,9 @@ private:
 	void createMenuOf3DViewer();
 
 public slots:
+#if defined(USE_Qt5)
+    void fitTriviewToWindow();
+#endif
 //    void changeColorType(ImageDisplayColorType c);
 
 //110722 RZC, for directly updating pixmap of 3view.  //110803 RZC, add bGlass

@@ -492,6 +492,7 @@ public:
 	void set_disp_width(int a) {disp_width = a;}
 	void set_disp_height(int a) {disp_height = a;}
 	void set_disp_scale(double a) {disp_scale = a; }
+    void setDisplayGeometry(int width, int height, double scale);
 
 	// Converts point from mouse event coordinates to image coordinates
 	QPointF mouseEventToImageCoords(const QPoint& p);
