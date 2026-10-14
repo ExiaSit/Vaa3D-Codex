@@ -59,3 +59,5 @@ XDG_CONFIG_HOME="$(mktemp -d /tmp/yflip-config-XXXXXX)" LIBGL_ALWAYS_SOFTWARE=1 
 ## 三维滚轮缩放回归
 
 完成常规构建后，运行 `make -C v3d_main/v3d -f Makefile -f ../../tests/wheel_zoom_gui_test.mk wheel-zoom-gui-test`。随后在独立 Xvfb、临时 `XDG_CONFIG_HOME` 和系统 `LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libstdc++.so.6` 下运行 `/tmp/vaa3d-wheel-zoom-gui`；输出 `WHEEL_ZOOM_GUI_PASS` 表示通过。测试使用合成 32³ 图像，检查微小滚轮增量累积、像素滚动、焦点、修饰键、缩放边界及滑条反馈。TeraFly 的跨分辨率切换不在此回归覆盖范围。
+
+桌面图标与程序窗口使用同一 Vaa3D logo；程序嵌入 256×256 图标，主窗口和三维窗口自动继承。Linux 桌面入口的 `StartupWMClass=vaa3d` 与窗口类型匹配，Qt desktop file name 为 `vaa3d-local`，用于任务栏识别。更新图标设置后运行桌面安装脚本并启动新版即可生效。

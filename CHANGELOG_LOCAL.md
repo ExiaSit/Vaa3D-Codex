@@ -12,6 +12,14 @@
 
 首次补记时间：2026-10-08 21:22:07 +08:00。
 
+## local-025 — 修复程序窗口和任务栏图标关联
+
+- 更新时间：2026-10-14 15:34:31 +08:00。
+- 排查发现程序未设置 QApplication 窗口图标，桌面入口也未提供窗口类型匹配信息。将现有 256×256 Vaa3D logo 嵌入 Qt 资源，在创建主窗口前设置全局窗口图标，主窗口及三维窗口继承；Linux Qt 5.7+ 设置 desktop file name 为 `vaa3d-local`。
+- 桌面安装脚本增加 `StartupWMClass=vaa3d`，与实际 WM_CLASS 对应；已重新安装当前用户的 desktop 入口，沿用原有 Vaa3D logo。恢复可重新安装旧版本脚本生成的 desktop 文件，其他用户配置不收录。
+- 验证：Debug 构建、desktop-file-validate、`git diff --check` 通过；独立 Xvfb 中确认 application/主窗口/三维窗口图标非空且能生成 256×256 图像，desktop file name 正确。实际桌面新版进程存活，X11 属性确认 WM_CLASS 为 vaa3d，_NET_WM_ICON 包含 256×256 像素数据。尚未人工检查所有桌面主题/任务栏缓存下的效果。
+- 已启动新版；本次只更新本仓库构建及其桌面入口，其他安装目录下正在运行的 Vaa3D 批处理进程未变更。安装时仍提示既有 clash-verge desktop 文件格式问题，该无关配置未修改。
+
 ## local-024 — See in 3D 菜单增加范围说明
 
 - 更新时间：2026-10-13 16:17:15 +08:00。

@@ -11,6 +11,11 @@ bool V3dApplication::naMainWindowIsActive;
 V3dApplication::V3dApplication(int & argc, char ** argv) 
     : QApplication(argc, argv)
 {
+    // Use the same embedded icon for every top-level window, including 3D views.
+    setWindowIcon(QIcon(":/v3d_logo.png"));
+#if defined(Q_OS_LINUX) && QT_VERSION >= QT_VERSION_CHECK(5, 7, 0)
+    setDesktopFileName(QStringLiteral("vaa3d-local"));
+#endif
 #if defined(USE_Qt5)
 	QSurfaceFormat format;
   format.setDepthBufferSize(24);

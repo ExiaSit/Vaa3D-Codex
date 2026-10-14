@@ -25,7 +25,7 @@ desktop.write_text(
     'Comment=View TIFF volumes with Vaa3D\n'
     f'Exec=/usr/bin/env {exec_quote(root / "scripts/open-vaa3d.sh")} %F\n'
     f'Icon={value_escape(root / "v3d_main/v3d/v3d_logo.png")}\n'
-    'Terminal=false\nStartupNotify=false\nCategories=Science;\n'
+    'Terminal=false\nStartupNotify=false\nStartupWMClass=vaa3d\nCategories=Science;\n'
     'MimeType=image/tiff;image/x-tiff;\n', encoding='utf-8')
 subprocess.run(['desktop-file-validate', str(desktop)], check=True)
 subprocess.run(['update-desktop-database', str(applications)], check=True)
