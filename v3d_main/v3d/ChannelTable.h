@@ -39,6 +39,7 @@ Peng, H, Ruan, Z., Atasoy, D., and Sternson, S. (2010) “Automatic reconstructi
 
 #include <assert.h>
 #include <QVector>
+#include <limits>
 
 #if defined(USE_Qt5)
   #include <QtWidgets>
@@ -414,6 +415,29 @@ struct Channel
 };
 
 
+// Integer single-channel slices need only a raw-value -> RGB lookup per pixel.
+// This loop is also optimized in debug builds: an XY plane can contain 56M pixels.
+template<class T>
+#if defined(__GNUC__) && !defined(__clang__)
+__attribute__((optimize("O3")))
+#endif
+void copySingleChannelLut(QImage &image, T ****p, ImagePlaneDisplayType plane,
+                          V3DLONG pos, const QRgb *lut)
+{
+    const int width=image.width(), height=image.height();
+    for (int row=0; row<height; ++row)
+    {
+        QRgb *out = reinterpret_cast<QRgb*>(image.scanLine(row));
+        if (plane == imgPlaneX)
+            for (int col=0; col<width; ++col) out[col] = lut[int(p[0][col][row][pos])];
+        else
+        {
+            const T *in = plane==imgPlaneY ? p[0][row][pos] : p[0][pos][row];
+            for (int col=0; col<width; ++col) out[col] = lut[int(in[col])];
+        }
+    }
+}
+
 template <class T> QImage copyRaw2QImage_Slice( //real function include brightness/contrast
 		const QList<Channel> & listChannel,
 		const MixOP & mixOp,
@@ -442,17 +466,19 @@ template <class T> QImage copyRaw2QImage_Slice( //real function include brightne
 
 	//qDebug()<<"copyRaw2QPixmap_Slice switch (Ctype)"<<Ctype;
 
+	// Keep generated LUTs alive until the slice has been rendered.
+	QVector< QVector<RGBA8> > localLuts;
 	//setup lookup-tables
 	if (! p_luts)
 	{
-		QVector< QVector<RGBA8> > luts(N);
+		localLuts.resize(N);
 		QVector<RGBA8> lut(256);
 		for (int k=0; k<N; k++)
 		{
 			make_linear_lut_one( listChannel[k].color, lut );
-			luts[k] = lut;
+			localLuts[k] = lut;
 		}
-		p_luts = &luts;
+		p_luts = &localLuts;
 	}
 
 	// transfer N channel's pixels
@@ -486,6 +512,36 @@ template <class T> QImage copyRaw2QImage_Slice( //real function include brightne
 	{ \
 		mC[k] = 0; \
 	}
+
+    const V3DLONG planePixels = cplane==imgPlaneX ? sz2*sz1 : cplane==imgPlaneY ? sz0*sz2 : sz0*sz1;
+    if (planePixels > (sizeof(T)==1 ? 4096 : 65536) &&
+        N==1 && std::numeric_limits<T>::is_integer && sizeof(T)<=2 &&
+        (cplane==imgPlaneX || cplane==imgPlaneY || cplane==imgPlaneZ))
+    {
+        const int entries = sizeof(T)==1 ? 256 : 65536;
+        QVector<QRgb> colors(entries);
+        for (int value=0; value<entries; ++value)
+        {
+            const int k=0;
+            float C=value;
+            if (listChannel[0].on)
+            {
+                BRIGHTEN_TRANSFORM(C);
+                // Convert via int to give defined modulo behavior for non-rescaled uint16.
+                mC[0] = static_cast<unsigned char>(static_cast<int>(
+                    !bRescale ? floor(C+0.5) : floor((C-p_vmin[0])/vrange[0]*255.0+0.5)));
+            }
+            else mC[0]=0;
+            const RGB8 o=lookup_mix(mC, *p_luts, op, mask);
+            colors[value]=qRgb(o.r,o.g,o.b);
+        }
+        const V3DLONG axis = cplane==imgPlaneX ? sz0 : cplane==imgPlaneY ? sz1 : sz2;
+        const V3DLONG pos = qBound<V3DLONG>(0,cpos,axis-1);
+        tmpimg = QImage(cplane==imgPlaneX ? sz2 : sz0,
+                        cplane==imgPlaneY ? sz2 : sz1, QImage::Format_RGB32);
+        if (!tmpimg.isNull()) copySingleChannelLut(tmpimg,p4d,cplane,pos,colors.constData());
+        return tmpimg;
+    }
 
 	switch (cplane) //QImage(w,h)
 	{

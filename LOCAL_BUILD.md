@@ -67,3 +67,23 @@ XDG_CONFIG_HOME="$(mktemp -d /tmp/yflip-config-XXXXXX)" LIBGL_ALWAYS_SOFTWARE=1 
 Qt 5 默认让三个切面按统一比例适应窗口。固定倍率仍可从三视图缩放菜单选择；选固定倍率后，再选择“自动适应窗口”恢复自适应。缩放保持原始图像、ROI 与切片位置。
 
 完成常规构建后运行 `make -C v3d_main/v3d -f Makefile -f ../../tests/triview_resize_gui_test.mk triview-resize-gui-test`。在独立 Xvfb 和临时 `XDG_CONFIG_HOME` 下运行 `/tmp/vaa3d-triview-resize-gui`（本机需 `LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libstdc++.so.6`），输出 `TRIVIEW_RESIZE_PASS` 表示通过。测试验证标题栏点击、还原、大小变化、坐标/ROI/切片保持、手动倍率与自动适应及面板折叠，并在 `/tmp` 保存大小窗口截图。
+
+## 大型 V3DRAW 后台加载与回归
+
+二维打开至少 64 MiB 的 `.v3draw` / `.raw` 时，使用后台读取线程；每 8 MiB 一块，在读取时处理字节序并统计各通道灰度范围。进度窗口支持取消，取消后保留已有图像，不弹出插件读取器重试提示。原始像素保留，仍需容纳整个体积的内存。当前实现支持标准 32 位尺寸和旧版 16 位尺寸文件头，以及 uint8、uint16、float32。
+
+大尺寸单通道 uint8/uint16 切面使用颜色查找表；加载初始化只渲染最终三视图状态，避免反复生成整张切面。浮点和多通道仍采用原切面混色算法；此更新不涵盖其他文件格式、自动转换/翻转、自动开启三维窗口或插件自身的耗时操作。取消会等待当前块的系统读取返回，异常缓慢的存储设备可能延迟取消完成。
+
+读取器单测（无需显示服务器）：
+
+```bash
+mkdir -p /tmp/vaa3d-raw-reader-test
+cd /tmp/vaa3d-raw-reader-test
+/home/pzy/anaconda3/bin/qmake /home/pzy/pzy/Vaa3D/tests/raw_volume_reader_test.pro CONFIG+=debug CONFIG-=release
+make
+LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libstdc++.so.6 ./raw_volume_reader_test
+```
+
+完整 Debug 构建后，在仓库根目录运行 `make -C v3d_main/v3d -f Makefile -f ../../tests/raw_volume_gui_test.mk raw-volume-gui-test`，随后在独立 Xvfb、临时 `XDG_CONFIG_HOME`、系统 `LD_PRELOAD` 和 `LIBGL_ALWAYS_SOFTWARE=1` 下运行 `/tmp/vaa3d-raw-volume-gui`。不带参数使用临时 80 MiB 稀疏文件；可传入本次用户的 `P00165-T001-R001-S005-B1.v3draw` 路径测试真实文件（需要约 24 GB 额外可用内存）。该参数模式会检查此文件的已知尺寸和灰度范围。
+
+GUI 测试验证逐像素颜色一致性、取消及数据保留、真实主窗口加载、文件字节抽样比对，并记录墙钟耗时及 20 ms 界面定时器的最大间隔；要求间隔小于 2 秒。输出 `RAW_VOLUME_GUI_PASS` 表示通过，截图保存到 `/tmp/vaa3d-raw-loaded.png`。测试读取原文件但不修改它；缓存状态会明显影响计时，热缓存结果不能代表机械硬盘首次读取速度。

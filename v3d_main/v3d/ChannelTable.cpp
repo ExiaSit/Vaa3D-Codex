@@ -168,6 +168,7 @@ void ChannelTabWidget::syncSharedData(const ChannelSharedData & data) //except b
 
 void ChannelTable::updateXFormWidget(int plane) // plane<=0 for all planes
 {
+    if (xform && xform->property("deferTriviewRendering").toBool()) return;
 	if (plane>0)
 	{
         //qDebug("ChannelTable::updateXFormWidget( %d )", plane);

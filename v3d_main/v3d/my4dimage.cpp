@@ -773,13 +773,36 @@ double My4DImage::getChannalMaxIntensity(V3DLONG channo) //if channo <0 or out o
 
 void My4DImage::setupData4D()
 {
+    setupData4D(0, 0);
+}
+
+void My4DImage::setupData4D(const double *minimum, const double *maximum)
+{
 	if (this->getError()==1 || ! this->getRawData() )
 	{
 		v3d_msg("Invalid input data for setting up 4D pointers setupData4D().\n", false);
 		return;
 	}
 
-	if (!updateminmaxvalues())
+    // The background RAW reader already computed exact channel ranges while reading.
+    if (minimum && maximum)
+    {
+        if (p_vmin) { delete[] p_vmin; p_vmin = 0; }
+        if (p_vmax) { delete[] p_vmax; p_vmax = 0; }
+        try
+        {
+            p_vmin = new double[getCDim()];
+            p_vmax = new double[getCDim()];
+            std::copy(minimum, minimum+getCDim(), p_vmin);
+            std::copy(maximum, maximum+getCDim(), p_vmax);
+        }
+        catch (...)
+        {
+            setError(1);
+            return;
+        }
+    }
+	else if (!updateminmaxvalues())
 	{
 		v3d_msg("Fail to run successfully updateminmaxvalues(). Thus discontinue the setupData4D().\n", false);
 		return;

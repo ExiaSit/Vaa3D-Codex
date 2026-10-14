@@ -259,6 +259,7 @@ public:
 
 	void loadImage(const char* filename);
 	void setupData4D();
+    void setupData4D(const double *minimum, const double *maximum);
 	void setupDefaultColorChannelMapping();
 	bool updateminmaxvalues();
 	void loadImage(V3DLONG imgsz0, V3DLONG imgsz1, V3DLONG imgsz2, V3DLONG imgsz3, int imgdatatype); //an overloaded function to create a blank image

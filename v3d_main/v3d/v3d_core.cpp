@@ -141,6 +141,10 @@
 #include "v3d_core.h"
 #include "mainwindow.h"
 #include "MIPViewer.h"
+#include "../basic_c_fun/RawVolumeReader.h"
+#include <QProgressDialog>
+#include <QTimer>
+#include <QEventLoop>
 
 #include <fstream> //080107
 #include <iostream> //080107
@@ -1311,6 +1315,8 @@ XFormView::XFormView(QWidget *parent)
 bool XFormView::internal_only_imgplane_op()
 {
 	if (!imgData || imgData->getCDim()<1) return false;
+    if (imgData->getXWidget() && imgData->getXWidget()->property("deferTriviewRendering").toBool())
+        return true;
     ImagePixelType dtype;
   	unsigned char **** p4d = (unsigned char ****)imgData->getData(dtype);
 	if (!p4d) return false;
@@ -4692,8 +4698,11 @@ bool XFormWidget::loadFile(QString filename)
 {
 	if (!filename.isEmpty())
 	{
+        const QString previousName = openFileNameLabel;
 		openFileNameLabel = filename;
-		return loadData();
+        const bool loaded = loadData();
+        if (!loaded) openFileNameLabel = previousName;
+        return loaded;
 	}
 	else
 	{
@@ -4703,6 +4712,7 @@ bool XFormWidget::loadFile(QString filename)
 
 bool XFormWidget::loadData()
 {
+    setProperty("imageLoadCanceled", false);
 	//try to get a rough estimation of available amount of memory
 	V3DLONG nbytes = estimateRoughAmountUsedMemory();
     if (nbytes>(unsigned V3DLONG)((double(1024)*1024*1024*TH_USE_MEMORY)))
@@ -4714,8 +4724,12 @@ bool XFormWidget::loadData()
 		return false;
 	}
 
+    const QString suffix = QFileInfo(openFileNameLabel).suffix().toLower();
+    const bool backgroundRaw = (suffix == "v3draw" || suffix == "raw") &&
+            QFileInfo(openFileNameLabel).size() >= 64LL*1024*1024;
+
 	// trying to load image using multithreaded method, by YuY, added 20101216
-	if(bUsingMultithreadedImageIO)
+	if(bUsingMultithreadedImageIO && !backgroundRaw)
 	{
 		//set up parameters
 		v3d_multithreadimageio_paras myimgiop;
@@ -4733,6 +4747,46 @@ bool XFormWidget::loadData()
 			return true;
 		}
 	}
+
+    std::unique_ptr<RawVolumeReader> reader;
+    if (backgroundRaw)
+    {
+        reader.reset(new RawVolumeReader(openFileNameLabel));
+        QProgressDialog progress(QString::fromUtf8("正在读取图像并统计灰度范围…"),
+                                 QString::fromUtf8("取消"), 0, 100, this);
+        progress.setObjectName("rawVolumeLoadProgress");
+        progress.setWindowTitle(QString::fromUtf8("加载 V3DRAW"));
+        progress.setWindowModality(Qt::ApplicationModal);
+        progress.setMinimumDuration(0);
+        progress.setAutoClose(false);
+        progress.setAutoReset(false);
+        QEventLoop loop;
+        QTimer timer;
+        QObject::connect(&timer, &QTimer::timeout, &progress, [&]() {
+            progress.setValue(reader->progress.load());
+        });
+        QObject::connect(&progress, &QProgressDialog::canceled, &loop, [&]() {
+            reader->cancel.store(true);
+            progress.setLabelText(QString::fromUtf8("正在取消，等待当前读取结束…"));
+            progress.setCancelButton(0);
+            progress.show();
+        });
+        QObject::connect(reader.get(), &QThread::finished, &loop, &QEventLoop::quit);
+        timer.start(100);
+        progress.show();
+        reader->start();
+        loop.exec();
+        reader->wait();
+        timer.stop();
+        QObject::disconnect(&progress, 0, &loop, 0);
+        progress.close();
+        if (!reader->success || reader->cancel.load())
+        {
+            setProperty("imageLoadCanceled", reader->cancel.load());
+            if (!reader->cancel.load()) v3d_msg(reader->error);
+            return false;
+        }
+    }
 
 	//the following are the original codes
 
@@ -4755,7 +4809,19 @@ bool XFormWidget::loadData()
 	const char* filename = ba.constData();
 	const char * curFileSurfix = getSuffix(filename);
 
-	if ( curFileSurfix && strcasecmp(curFileSurfix, "mp4") == 0 )
+    if (backgroundRaw)
+    {
+        if (!imgData->setData(reader->data.get(), reader->dims[0], reader->dims[1],
+                              reader->dims[2], reader->dims[3], ImagePixelType(reader->datatype)))
+        {
+            delete imgData; imgData = 0;
+            return false;
+        }
+        reader->data.release();
+        imgData->setFileName(filename);
+        imgData->setupData4D(reader->minimum.data(), reader->maximum.data());
+    }
+    else if ( curFileSurfix && strcasecmp(curFileSurfix, "mp4") == 0 )
 		loadH264Image( filename );
 	else if ( curFileSurfix && strcasecmp(curFileSurfix, "h5j") == 0 )
 		loadHDF5( filename );
@@ -4773,6 +4839,9 @@ bool XFormWidget::loadData()
 	}
 
 	v3d_msg(QString("img data size %1 %2 %3 %4\n").arg(imgData->getXDim()).arg(imgData->getYDim()).arg(imgData->getZDim()).arg(imgData->getCDim()), 0);
+
+    // Initialization changes focus, colors and zoom several times. Render only the final state.
+    if (backgroundRaw) setProperty("deferTriviewRendering", true);
 
 	setCTypeBasedOnImageData();
 
@@ -4796,6 +4865,11 @@ bool XFormWidget::loadData()
     //v3d_msg(QString("The current file has the name [%1]").arg(imgData->getFileName()));
 
 	reset(); //090718. PHC. force to update once, since sometimes the 16bit image does not display correctly (why all black but once click reset button everything correct?)
+    if (backgroundRaw)
+    {
+        setProperty("deferTriviewRendering", false);
+        imgData->updateViews();
+    }
 	return true;
 
 }

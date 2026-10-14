@@ -40,6 +40,7 @@ Sept 30, 2008: disable  open in the same window function, also add flip image fu
  Oct 6, 2010: CMB add web URL open method
 **
 ****************************************************************************/
+#include <QElapsedTimer>
 #include "../3drenderer/v3dr_common.h"
 #if defined(USE_Qt5)
   #include <QtWidgets>
@@ -1129,7 +1130,8 @@ void MainWindow::loadV3DFile(QString fileName, bool b_putinrecentfilelist, bool 
         {
             try
             {
-                size_t start_t = clock();
+                QElapsedTimer loadTimer;
+                loadTimer.start();
                 XFormWidget *child = createMdiChild();
                 v3d_msg(QString("Trying to load an image file [%1]").arg(fileName), 0);
 
@@ -1173,12 +1175,13 @@ void MainWindow::loadV3DFile(QString fileName, bool b_putinrecentfilelist, bool 
                     {
                         child->doImage3DView();
                     }
-                    size_t end_t = clock();
-                    qDebug()<<"time consume ..."<<end_t-start_t;
+                    qDebug()<<"Image load wall time (ms):"<<loadTimer.elapsed();
                 }
                 else
                 {
+                    const bool canceled = child->property("imageLoadCanceled").toBool();
                     child->close();
+                    if (canceled) return;
                     if (QMessageBox::question(0, "File Open options",
                                               QString("Cannot open the specified image [%1] using Vaa3D's default file opener. "
                                               "Do you want to try other file opener in Vaa3D plugins?").arg(fileName), QMessageBox::Yes, QMessageBox::No)
