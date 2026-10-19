@@ -61,8 +61,8 @@ Peng, H, Ruan, Z., Atasoy, D., and Sternson, S. (2010) “Automatic reconstructi
 #include "marchingcubes.h"
 
 
-static struct Triangle* pT0 = NULL; //head
-static struct Triangle* pT1 = NULL; //tail
+static thread_local struct Triangle* pT0 = NULL; //head
+static thread_local struct Triangle* pT1 = NULL; //tail
 
 void delTriangles(struct Triangle* list)
 {
@@ -89,13 +89,13 @@ int numTriangles(struct Triangle* list)
 
 //---------------------------------------------------------------------
 
-static t_fSample fSample = NULL;
-static float fStepSize;
-static float fTargetValue;
+static thread_local t_fSample fSample = NULL;
+static thread_local float fStepSize;
+static thread_local float fTargetValue;
 
 static void vMarchCube1(float fX, float fY, float fZ, float fScale); //the Marching Cubes algorithm
 static void vMarchCube2(float fX, float fY, float fZ, float fScale); //the Marching Tetrahedrons algorithm
-static void (*vMarchCube)(float fX, float fY, float fZ, float fScale) = vMarchCube1;
+static thread_local void (*vMarchCube)(float fX, float fY, float fZ, float fScale) = vMarchCube1;
 
 
 // MarchingCubes iterates over the entire dataset, calling vMarchCube on each cube
@@ -113,6 +113,7 @@ struct Triangle*
 		pT0=pT1 = NULL;
 		fSample = pfSample;
 
+        try {
         int iX, iY, iZ;
 		int d = 0;
 	    for(iX = d; iX < numStep-d; iX++)
@@ -127,6 +128,7 @@ struct Triangle*
         }
 
         }
+        } catch (...) { delTriangles(pT0); pT0=pT1=NULL; throw; }
 		return pT0;
 }
 

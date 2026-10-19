@@ -852,6 +852,7 @@ public:
 	QList <LabelSurf> listLabelSurf;
 	QList <Triangle*> list_listTriangle;
 	QList <GLuint> list_glistLabel;
+    QList<GLuint> maskChunkLists; // Child display lists for bounded asynchronous mask uploads.
 	BoundingBox labelBB;
 
 	void createMarker_atom();  					// makeCurrent & called in loadObj
@@ -891,6 +892,7 @@ public:
 
 	void loadLabelfieldSurf(const QString& filename, int ch=0);
 	void constructLabelfieldSurf(int mesh_method, int mesh_density);
+	void loadTiffMaskAsync(const QString &filename, int ch);
 	void compileLabelfieldSurf(int update=0);  					// makeCurrent
 	virtual void drawLabelfieldSurf();
 	void cleanLabelfieldSurf();

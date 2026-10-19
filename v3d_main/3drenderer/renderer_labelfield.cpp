@@ -44,6 +44,14 @@ Peng, H, Ruan, Z., Atasoy, D., and Sternson, S. (2010) “Automatic reconstructi
 
 #include "renderer_gl1.h"
 #include <QElapsedTimer>
+#include <QThread>
+#include <QPointer>
+#include <QTimer>
+#include <QSet>
+#include <QSemaphore>
+#include <cmath>
+#include "../basic_c_fun/MaskTiffVolume.h"
+#include "v3dr_glwidget.h"
 #include "marchingcubes.cpp"
 
 
@@ -54,13 +62,13 @@ bool lf_busy = false; // 090504 RZC : to prevent draw listLabelSurf when creatin
 QString lf_data_title = "";
 My4DImage* lf_image4d = 0;
 bool lf_fromfile = false;
-unsigned int lf_mask = 0;
-unsigned char* lf_data1d = 0;
-unsigned char* lf_data_ch = 0;
-int lf_sz0 = 0;
-int lf_sz1 = 0;
-int lf_sz2 = 0;
-int lf_sz3 = 0;
+thread_local unsigned int lf_mask = 0;
+thread_local unsigned char* lf_data1d = 0;
+thread_local unsigned char* lf_data_ch = 0;
+thread_local int lf_sz0 = 0;
+thread_local int lf_sz1 = 0;
+thread_local int lf_sz2 = 0;
+thread_local int lf_sz3 = 0;
 
 static
 void lf_setDataCh(int ch)
@@ -74,9 +82,9 @@ static inline
 float lf_4dimageSample(int x, int y, int z)
 {
 	float f =0;
-	if (lf_mask==0xff)		f = *(unsigned  char*)&(lf_data_ch[ (z*lf_sz1*lf_sz0 + y*lf_sz0 + x) ]);   //*1
-	if (lf_mask==0xffff)	f = *(unsigned short*)&(lf_data_ch[ (z*lf_sz1*lf_sz0 + y*lf_sz0 + x)*2 ]); //*2
-	if (lf_mask==0xffffffff)	f = *(float*)&(lf_data_ch[ (z*lf_sz1*lf_sz0 + y*lf_sz0 + x)*4 ]); //*4
+	if (lf_mask==0xff)		f = *(unsigned  char*)&(lf_data_ch[ (size_t(z)*lf_sz1*lf_sz0 + size_t(y)*lf_sz0 + x) ]);   //*1
+	if (lf_mask==0xffff)	f = *(unsigned short*)&(lf_data_ch[ (size_t(z)*lf_sz1*lf_sz0 + size_t(y)*lf_sz0 + x)*2 ]); //*2
+	if (lf_mask==0xffffffff)	f = *(float*)&(lf_data_ch[ (size_t(z)*lf_sz1*lf_sz0 + size_t(y)*lf_sz0 + x)*4 ]); //*4
 	return  (f);
 }
 static inline
@@ -90,8 +98,8 @@ int bit_mask(unsigned int lf_mask)
 }
 
 static int mesh_type = 0;		//0/1 --- label field/ range surface
-static int mesh_iso0 = 0;		// range min
-static int mesh_iso1 = 0;		// range max
+static thread_local int mesh_iso0 = 0;		// range min
+static thread_local int mesh_iso1 = 0;		// range max
 static int mesh_method = 0;
 static int mesh_density = 0;
 
@@ -111,6 +119,11 @@ static const char* i2strRGB[] = //{"R", "G", "B"};
 void Renderer_gl1::loadLabelfieldSurf(const QString& filename, int ch)
 {
 	qDebug("    Renderer_gl1::loadLabelfieldSurf(ch = %d)", ch);
+    if (filename.endsWith(".tif", Qt::CaseInsensitive) || filename.endsWith(".tiff", Qt::CaseInsensitive))
+    {
+        loadTiffMaskAsync(filename, ch);
+        return;
+    }
     if (lf_busy) { v3d_msg("Surface generation is already running."); return; }
 
     lf_data_title = filename; // 081004
@@ -290,6 +303,218 @@ float _labelSampleFunc(float fX, float fY, float fZ)
 		count += (mesh_iso0<=ip[i] && ip[i]<=mesh_iso1) * sp[i];
 	}
 	return (count*255);
+}
+
+struct MaskMeshOptions
+{
+    int type=0,method=0,density=100,low=0,high=65535,channel=0;
+    bool replace=false;
+    QString annotation;
+};
+
+class MaskSurfaceJob : public QThread
+{
+public:
+    QString path,error;
+    MaskMeshOptions options;
+    std::atomic<bool> cancel{false},ready{false};
+    QSemaphore releaseResults;
+    std::atomic<int> progress{0},phase{0};
+    QList<LabelSurf> labels;
+    QList<Triangle*> triangles;
+    std::vector<std::vector<float>> arrays;
+    BoundingBox bounds;
+    bool success=false;
+    MaskSurfaceJob(QString file,const MaskMeshOptions &o):path(file),options(o),bounds(NULL_BoundingBox){}
+    ~MaskSurfaceJob(){Q_ASSERT(!isRunning());}
+protected:
+    void run() override
+    {
+        try { build(); }
+        catch(const std::exception &e){error=QString::fromUtf8(e.what());}
+        catch(...){error=QString::fromUtf8("Mask 表面生成失败。");}
+        ready.store(true); // Release/acquire publishes CPU results; GUI owns them until releaseResults.
+        releaseResults.acquire();
+        for(auto t:triangles)delTriangles(t);
+        triangles.clear();arrays.clear();
+    }
+    void build()
+    {
+        MaskTiffVolume volume;volume.read(path,options.channel,cancel,progress);
+        if(cancel.load())return;
+        lf_sz0=volume.x;lf_sz1=volume.y;lf_sz2=volume.z;lf_sz3=1;
+        lf_mask=volume.bytes==1?0xff:volume.bytes==2?0xffff:0xffffffff;
+        lf_data_ch=volume.data.data();
+        phase=1;
+        if(options.type==0)
+        {
+            QSet<int> found;
+            for(int z=0;z<lf_sz2;++z)for(int y=0;y<lf_sz1;++y)
+            {
+                if(cancel.load())return;
+                for(int x=0;x<lf_sz0;++x)
+                {
+                    double value=lf_4dimageSample(x,y,z);
+                    if(!std::isfinite(value)||value<0||value>INT_MAX||std::floor(value)!=value)
+                        throw std::runtime_error("Label masks must contain nonnegative integer labels; use Range surface for intensity data");
+                    if(value>0)found.insert(int(value));
+                }
+                progress=30+int(10*(size_t(z)*lf_sz1+y)/(size_t(lf_sz2)*lf_sz1));
+            }
+            auto sorted=found.values();std::sort(sorted.begin(),sorted.end());
+            for(int v:sorted){LabelSurf label;label.label=label.label2=v;label.on=true;labels<<label;}
+        }
+        else {LabelSurf label;label.label=options.low;label.label2=options.high;label.on=true;labels<<label;}
+        QList<CellAPO> names;
+        if(!options.annotation.isEmpty())
+        {
+            // Only names/comments are needed. The legacy APO reader may show a QMessageBox.
+            QFile file(options.annotation);
+            if(!file.open(QIODevice::ReadOnly|QIODevice::Text))throw std::runtime_error("Cannot open VANO APO annotation");
+            while(!file.atEnd())
+            {
+                if(cancel.load())return;
+                const QByteArray line=file.readLine(10000).trimmed();
+                if(line.isEmpty()||line.startsWith('#'))continue;
+                const QStringList fields=QString::fromUtf8(line).split(',');
+                CellAPO name;name.name=fields.value(2).left(200);name.comment=fields.value(3).left(200);names<<name;
+            }
+        }
+        for(int i=0;i<labels.size()&&i<names.size();++i){labels[i].name=names[i].name;labels[i].comment=names[i].comment;}
+        phase=2;
+        for(int group=0;group<labels.size();++group)
+        {
+            if(cancel.load())return;
+            mesh_iso0=labels[group].label;mesh_iso1=labels[group].label2;
+            struct Context {MaskSurfaceJob *job;int group,total;} ctx{this,group,labels.size()};
+            Triangle *t=MarchingCubes(options.density,127.5f,_labelSampleFunc,options.method,
+                [](int p,void *v)->bool{auto c=static_cast<Context*>(v);
+                    c->job->progress=40+int(50.0*(c->group+p/100.0)/c->total);return !c->job->cancel.load();},&ctx);
+            triangles<<t;arrays.emplace_back();auto &vertices=arrays.back();
+            size_t count=0;
+            for(auto p=t;p;p=p->next)
+            {
+                if((++count%4096)==0&&cancel.load())return;
+                for(int c=0;c<3;++c)
+                {
+                    p->vertex[c][0]*=lf_sz0;p->vertex[c][1]*=lf_sz1;p->vertex[c][2]*=lf_sz2;
+                    bounds.expand(XYZ(p->vertex[c][0],p->vertex[c][1],p->vertex[c][2]));
+                    vertices.insert(vertices.end(),p->vertex[c],p->vertex[c]+3);
+                    vertices.insert(vertices.end(),p->normal[c],p->normal[c]+3);
+                }
+            }
+        }
+        success=!cancel.load();progress=90;
+    }
+};
+
+void Renderer_gl1::loadTiffMaskAsync(const QString &filename,int ch)
+{
+    QPointer<V3dR_GLWidget> view=qobject_cast<V3dR_GLWidget*>(static_cast<QWidget*>(widget));
+    if(!view || view->property("maskImportRunning").toBool())return;
+    QDialog dialog(view->getMainWindow());dialog.setWindowTitle(QString::fromUtf8("导入 Mask"));
+    dialog.setObjectName("maskImportOptions");dialog.setWindowModality(Qt::WindowModal);
+    QFormLayout layout(&dialog);
+    QLabel fileLabel(filename);fileLabel.setWordWrap(true);layout.addRow(&fileLabel);
+    QComboBox type,method;type.setObjectName("maskMeshType");method.setObjectName("maskMeshMethod");
+    type.addItems(QStringList()<<"Label field surface"<<"Range surface");
+    method.addItems(QStringList()<<"Marching Cubes"<<"Marching Tetrahedrons");
+    QSpinBox density,low,high;density.setObjectName("maskMeshDensity");density.setRange(1,1000);density.setValue(100);
+    low.setRange(0,65535);high.setRange(0,65535);high.setValue(65535);low.setEnabled(false);high.setEnabled(false);
+    QObject::connect(&type,static_cast<void(QComboBox::*)(int)>(&QComboBox::currentIndexChanged),&dialog,[&](int i){low.setEnabled(i==1);high.setEnabled(i==1);});
+    layout.addRow(QString::fromUtf8("表面类型"),&type);layout.addRow(QString::fromUtf8("算法"),&method);
+    layout.addRow(QString::fromUtf8("Mesh density（每轴步数）"),&density);
+    density.setToolTip(QString::fromUtf8("计算量随步数的三次方增长；1000 步约为十亿个网格，可在生成时取消。"));
+    layout.addRow(QString::fromUtf8("范围下限"),&low);layout.addRow(QString::fromUtf8("范围上限"),&high);
+    QCheckBox replace(QString::fromUtf8("成功后替换已有表面"));replace.setObjectName("maskReplaceSurfaces");layout.addRow(&replace);
+    QLineEdit annotation;annotation.setObjectName("maskAnnotationPath");annotation.setPlaceholderText(QString::fromUtf8("可选 VANO APO 注释文件，留空则不导入名称"));
+    QPushButton browse(QString::fromUtf8("选择 APO…"));
+    QObject::connect(&browse,&QPushButton::clicked,&dialog,[&](){auto path=FastFileDialog::getOpenFileName(&dialog,"VANO APO",QString(),"APO (*.apo)");if(!path.isEmpty())annotation.setText(path);});
+    layout.addRow(&annotation,&browse);
+    QDialogButtonBox buttons(QDialogButtonBox::Ok|QDialogButtonBox::Cancel);layout.addRow(&buttons);
+    QObject::connect(&buttons,&QDialogButtonBox::accepted,&dialog,&QDialog::accept);
+    QObject::connect(&buttons,&QDialogButtonBox::rejected,&dialog,&QDialog::reject);
+    if(dialog.exec()!=QDialog::Accepted || !view)return;
+    MaskMeshOptions options;options.type=type.currentIndex();options.method=method.currentIndex();options.density=density.value();
+    options.low=low.value();options.high=high.value();options.replace=replace.isChecked();options.channel=ch;options.annotation=annotation.text();
+    if(options.low>options.high){QMessageBox::warning(view->getMainWindow(),"Mask",QString::fromUtf8("范围下限不能大于上限。"));return;}
+    auto job=new MaskSurfaceJob(filename,options);
+    view->setProperty("maskImportRunning",true);
+    QPointer<QProgressDialog> progress=new QProgressDialog(QString::fromUtf8("正在读取 Mask…"),QString::fromUtf8("取消"),0,100,view->getMainWindow());
+    progress->setObjectName("maskImportProgress");progress->setWindowTitle(QString::fromUtf8("导入 Mask — ")+QFileInfo(filename).fileName());
+    progress->setWindowModality(Qt::NonModal);progress->setMinimumDuration(0);progress->setAutoClose(false);progress->setAutoReset(false);progress->show();
+    // Nonmodal progress keeps every window usable and avoids QProgressDialog::setValue
+    // processing nested events during GL uploads. Results publish only on the GUI thread.
+    struct Upload {QList<GLuint> parents,chunks,current;size_t group=0,vertex=0;};
+    auto upload=std::make_shared<Upload>();
+    auto clearGpu=[view,upload](){if(view)view->makeCurrent();else return;
+        for(auto id:upload->parents)glDeleteLists(id,1);for(auto id:upload->chunks)glDeleteLists(id,1);
+        upload->parents.clear();upload->chunks.clear();upload->current.clear();};
+    QObject::connect(view,&V3dR_GLWidget::rendererAboutToBeDeleted,job,[job,clearGpu](){job->cancel=true;clearGpu();});
+    QObject::connect(view,&QObject::destroyed,job,[job](){job->cancel=true;});
+    QObject::connect(progress,&QProgressDialog::canceled,job,[job,progress](){job->cancel=true;
+        if(progress){progress->setLabelText(QString::fromUtf8("正在取消…"));progress->setCancelButton(0);progress->show();}});
+    QObject::connect(progress,&QObject::destroyed,job,[job](){job->cancel=true;});
+    QObject::connect(qApp,&QCoreApplication::aboutToQuit,job,[job](){job->cancel=true;job->releaseResults.release();job->wait();});
+    auto timer=new QTimer(job);timer->setInterval(40);
+    QObject::connect(timer,&QTimer::timeout,job,[this,view,job,progress,timer,upload,clearGpu](){
+        if(!job->ready.load())
+        {
+            if(progress){progress->setValue(job->progress.load());
+                const char *text=job->cancel?"正在取消…":job->phase==0?"正在读取 Mask…":job->phase==1?"正在统计标签…":"正在生成表面…";
+                progress->setLabelText(QString::fromUtf8(text));}
+            return;
+        }
+        // Worker is waiting on releaseResults; no GUI-thread wait or large-buffer cleanup.
+        if(!view || job->cancel || view->getRenderer()!=this || !job->success)
+        {
+            clearGpu();timer->stop();if(view)view->setProperty("maskImportRunning",false);
+            if(progress){QObject::disconnect(progress,0,job,0);progress->deleteLater();}
+            if(view&&!job->cancel&&!job->error.isEmpty())
+            {auto message=new QMessageBox(QMessageBox::Warning,"Mask",job->error,QMessageBox::Ok,view->getMainWindow());message->setAttribute(Qt::WA_DeleteOnClose);message->setWindowModality(Qt::WindowModal);message->open();}
+            job->releaseResults.release();return;
+        }
+        if(progress){progress->setLabelText(QString::fromUtf8("正在上传表面…"));progress->setValue(90+int(9*upload->group/qMax(1,job->labels.size())));}
+        timer->setInterval(1);view->makeCurrent();
+        // Bounded GL submissions let other windows process input between uploads.
+        if(upload->group<job->arrays.size())
+        {
+            auto &array=job->arrays[upload->group];size_t vertices=array.size()/6;
+            GLsizei count=GLsizei(std::min<size_t>(8192*3,vertices-upload->vertex));
+            while(glGetError()!=GL_NO_ERROR){}
+            GLuint chunk=glGenLists(1);
+            if(chunk){upload->chunks<<chunk;upload->current<<chunk;glNewList(chunk,GL_COMPILE);
+                if(count){const float *data=array.data()+upload->vertex*6;glPushClientAttrib(GL_CLIENT_VERTEX_ARRAY_BIT);
+                    glEnableClientState(GL_VERTEX_ARRAY);glEnableClientState(GL_NORMAL_ARRAY);
+                    glVertexPointer(3,GL_FLOAT,6*sizeof(float),data);glNormalPointer(GL_FLOAT,6*sizeof(float),data+3);
+                    glDrawArrays(GL_TRIANGLES,0,count);glPopClientAttrib();}glEndList();}
+            if(!chunk||glGetError()!=GL_NO_ERROR){job->success=false;job->error=QString::fromUtf8("显卡无法上传 Mask 表面，原有表面已保留。");return;}
+            upload->vertex+=count;
+            if(upload->vertex==vertices)
+            {
+                GLuint parent=glGenLists(1);
+                if(!parent){job->success=false;job->error="Cannot allocate surface display list";return;}
+                upload->parents<<parent;glNewList(parent,GL_COMPILE);for(auto id:upload->current)glCallList(id);glEndList();
+                if(glGetError()!=GL_NO_ERROR){job->success=false;job->error="Cannot compile surface display list";return;}
+                upload->current.clear();upload->vertex=0;++upload->group;
+            }
+            return;
+        }
+        QList<Triangle*> retired;
+        if(job->options.replace){retired.swap(list_listTriangle);cleanLabelfieldSurf();}
+        for(auto label:job->labels){label.n=listLabelSurf.size()+1;label.color=random_rgba8(255);listLabelSurf<<label;}
+        list_listTriangle+=job->triangles;job->triangles=retired;
+        list_glistLabel+=upload->parents;maskChunkLists+=upload->chunks;upload->parents.clear();upload->chunks.clear();
+        if(job->options.replace)labelBB=job->bounds;else labelBB.expand(job->bounds);
+        updateBoundingBox();lf_data_title=job->path;
+        if(_idep)static_cast<iDrawExternalParameter*>(_idep)->labelfield_file=job->path;
+        view->updateTool();view->surfaceSelectTab(stLabelSurface-1);view->update();
+        view->setProperty("maskImportRunning",false);timer->stop();
+        if(progress){QObject::disconnect(progress,0,job,0);progress->deleteLater();}
+        job->releaseResults.release();
+    });
+    QObject::connect(job,&QThread::finished,job,&QObject::deleteLater);
+    timer->start();job->start();
 }
 
 void Renderer_gl1::constructLabelfieldSurf(int mesh_method, int mesh_density)
@@ -532,6 +757,8 @@ void Renderer_gl1::compileLabelfieldSurf(int update)
 	for (int i=0; i<list_glistLabel.size(); i++)
 		glDeleteLists(list_glistLabel[i], 1);
 	list_glistLabel.clear();
+    for(auto id:maskChunkLists)glDeleteLists(id,1);
+    maskChunkLists.clear();
 
 	if (compiledLabelSurf)
 		for (int i=0; i<listLabelSurf.size(); i++)
@@ -563,6 +790,8 @@ void Renderer_gl1::cleanLabelfieldSurf()
 		glDeleteLists(list_glistLabel[i], 1);
 	}
 	list_glistLabel.clear();
+    for(auto id:maskChunkLists)glDeleteLists(id,1);
+    maskChunkLists.clear();
 
 	listLabelSurf.clear();
 }

@@ -95,3 +95,28 @@ GUI 测试验证逐像素颜色一致性、取消及数据保留、真实主窗�
 完整构建后，在仓库根目录运行 `make -C v3d_main/v3d -f Makefile -f ../../tests/object_manager_windows_gui_test.mk object-manager-windows-gui-test`。在独立 Xvfb、临时 `XDG_CONFIG_HOME`、系统 `LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libstdc++.so.6` 和 `LIBGL_ALWAYS_SOFTWARE=1` 下运行 `/tmp/vaa3d-object-manager-windows-gui`；输出 `OBJECT_MANAGER_WINDOWS_PASS` 表示通过。
 
 测试使用两个合成图像的真实 3D 窗口，通过界面按钮打开管理器，验证不同对象列表、标题/页签、激活切换、拒绝跨窗口重新关联、神经元/Marker/表面显示开关与 Y 翻转、撤销、列表刷新、管理器隐藏/重开、所属窗口关闭及渲染器重建清理。截图保存在 `/tmp/vaa3d-manager-A.png` 和 `/tmp/vaa3d-manager-B.png`，不使用或修改用户图像/标注。
+
+## TIFF Mask 后台导入与多窗口操作
+
+3D 视窗的“导入 Mask”支持 TIFF 的后台读取、标签统计和表面生成；计算期间进度窗不锁定主窗口或其他视窗，同一视窗一次导入一个 Mask，不同视窗可同时导入。参数集中在一个窗口：表面类型、Marching Cubes/Tetrahedrons、Mesh density、范围、是否替换已有表面及可选 VANO APO 名称/注释。默认追加；选择替换也只在全部生成、上传成功后生效，取消或失败保留原有表面。
+
+显卡显示列表按每批最多 8192 个三角形上传，批次之间处理界面事件。取消、关闭所属视窗或重建渲染器会终止任务并丢弃未发布结果；CPU 大缓冲和三角形链在后台释放。完成后仍是原生 Label Surface，可用所属 Object Manager 控制 on/off、Y flip 和导出。读取保持 TIFF 存储行序，不翻转 Y。
+
+读取器支持标准多页 TIFF/BigTIFF、条带或 tile、压缩数据、unsigned 1/8/16 位、float32，以及连续或平面多通道（导入按钮默认第一通道）。非整数/负值标签须用 Range surface。密度 1000 仍代表每个标签约十亿个网格的计算量；后台化不减少算法总量及整个 Mask/网格所需内存。取消需等待当前磁盘读取或计算小批次返回。此更新针对 TIFF Mask；RAW/当前图像生成表面的旧入口及其他插件操作未改为后台。验证平台为本机 Qt 5、Linux、Xvfb 软件 OpenGL，未覆盖实际 GPU 的所有驱动行为。
+
+验证入口（仓库根目录）：
+
+```bash
+mkdir -p /tmp/vaa3d-mask-reader-test
+cd /tmp/vaa3d-mask-reader-test
+/home/pzy/anaconda3/bin/qmake /home/pzy/pzy/Vaa3D/tests/mask_tiff_volume_test.pro CONFIG+=debug CONFIG-=release
+make
+LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libstdc++.so.6 ./mask_tiff_volume_test
+cd /home/pzy/pzy/Vaa3D
+g++ -std=c++11 -O2 -pthread tests/marching_parallel_test.cpp v3d_main/3drenderer/marchingcubes.cpp -o /tmp/vaa3d-marching-parallel-test
+/tmp/vaa3d-marching-parallel-test
+make -C v3d_main/v3d -f Makefile -f ../../tests/mask_async_gui_test.mk mask-async-gui-test
+XDG_CONFIG_HOME="$(mktemp -d /tmp/vaa3d-mask-gui-XXXXXX)" LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libstdc++.so.6 LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a -s '-screen 0 1600x1200x24' /tmp/vaa3d-mask-async-gui
+```
+
+成功标记分别为 `MASK_TIFF_READER_PASS`、`MARCHING_PARALLEL_PASS`、`MASK_ASYNC_GUI_PASS`。读取器检查 44 组像素/通道组合、取消、错误通道和损坏/截断文件；算法回归比较并行与串行结果，并验证取消和异常后可重用。GUI 回归创建两个真实 3D 视窗，验证同时导入、主窗口及另一视窗响应、滚轮缩放、显示开关与 Y flip、计算中和上传中取消、替换、失败保留数据、关闭视窗及渲染器销毁。截图输出 `/tmp/vaa3d-mask-async.png`，无用户图像/标注写入。

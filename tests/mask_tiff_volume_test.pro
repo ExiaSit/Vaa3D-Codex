@@ -1,0 +1,9 @@
+QT += core
+QT -= gui
+CONFIG += console c++11
+CONFIG -= app_bundle
+TARGET = mask_tiff_volume_test
+SOURCES += $$PWD/mask_tiff_volume_test.cpp
+INCLUDEPATH += $$PWD/../v3d_main/common_lib/include
+LIBS += -L$$PWD/../v3d_main/common_lib/lib -lv3dtiff
+QMAKE_RPATHDIR += $$PWD/../v3d_main/common_lib/lib

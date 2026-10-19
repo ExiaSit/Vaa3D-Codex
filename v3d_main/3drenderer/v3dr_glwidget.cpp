@@ -206,6 +206,7 @@ V3dR_GLWidget::V3dR_GLWidget(iDrawExternalParameter* idep, QWidget* mainWindow, 
 //////////////////////////////////////////////////////
 void V3dR_GLWidget::deleteRenderer()
 {
+    emit rendererAboutToBeDeleted();
     // Close the view's manager before freeing the renderer its table handlers access.
     // This also handles renderer replacement, not just closing the window.
     delete surfaceDlg; // Its destructor clears this view's pointer.

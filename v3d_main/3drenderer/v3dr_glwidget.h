@@ -457,6 +457,7 @@ public slots:
 //----------------------------------------------------------------------------------------
 
 signals:
+    void rendererAboutToBeDeleted();
 // most of format: change***(type)
 // most of format: changeEnable***(bool)
 // most of format: signal***()

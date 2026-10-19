@@ -688,6 +688,8 @@ void Renderer_gl1::loadObjectFilename(const QString& filename)
             )
 		{
 			loadLabelfieldSurf(filename);
+            // TIFF imports publish their metadata and refresh the view only after background completion.
+            if(filename.endsWith(".tif",Qt::CaseInsensitive)||filename.endsWith(".tiff",Qt::CaseInsensitive))return;
             type = stLabelSurface;
             ep->labelfield_file = filename;
 		}
