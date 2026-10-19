@@ -112,7 +112,7 @@ public:
 	void setStill(bool b) 	{_still = b;}    //used by V3dR_MainWindow::doSaveMovie()
     bool needStillPaint();
 	void clearColormapDialog() {colormapDlg = 0;}
-    void clearSurfaceDialog()  {surfaceDlg = 0;}
+    void clearSurfaceDialog(V3dr_surfaceDialog *dialog) {if (surfaceDlg == dialog) surfaceDlg = 0;}
     bool screenShot(QString filename);
     void triggerNeuronShown(QList<int> overlayList)    {emit neuronShown(overlayList);}
     void triggerNeuronShownAll(QList<int> overlayList) {emit neuronShownAll(overlayList);}
@@ -168,7 +168,7 @@ public:
     QString data_title;
 	QString dropUrl;
     static V3dr_colormapDialog* colormapDlg;
-    static V3dr_surfaceDialog*  surfaceDlg;
+    V3dr_surfaceDialog* surfaceDlg; // One Object Manager per 3D view.
 	//static SurfaceObjGeometryDialog *surfaceObjGeoDlg;
     int neuronIndex;
 
@@ -569,6 +569,7 @@ public:
 
 	void init_members()
 	{
+        surfaceDlg = 0;
 		_still = _stillpaint_need = _stillpaint_pending = false;
 	    connect(&still_timer, SIGNAL(timeout()), this, SLOT(stillPaint())); //only connect once
 	    still_timer.start(still_timer_interval);

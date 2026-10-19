@@ -88,13 +88,18 @@ void V3dR_MainWindow::closeEvent(QCloseEvent* e)
 	//setWindowModality(Qt::ApplicationModal); //090710
 	//setEnabled(false);
 
+    if (lastActive == this) lastActive = 0;
 	if (glWidget) //090705 RZC: move form ~V3dR_MainWindow()
 	{
-		//DELETE_AND_ZERO(glWidget->renderer); //090710
-		glWidget->deleteRenderer(); //090711 RZC: fixed the problem of Over delete OpenGL resource cross different glWidget
+        // Closing a child dialog can activate a window again. Do not let those
+        // events (or the GL widget's deferred close) call a destroyed GL widget.
+        V3dR_GLWidget *closingWidget = glWidget;
+        glWidget = 0;
+        closingWidget->deleteRenderer();
 
 		if (glWidgetArea) glWidgetArea->takeWidget();
-		glWidget->deleteLater();
+        closingWidget->hide();
+        closingWidget->deleteLater();
 	}
 
 	////////////////////////////////////////////////////////////

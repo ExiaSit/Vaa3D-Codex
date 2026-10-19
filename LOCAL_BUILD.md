@@ -87,3 +87,11 @@ LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libstdc++.so.6 ./raw_volume_reader_test
 完整 Debug 构建后，在仓库根目录运行 `make -C v3d_main/v3d -f Makefile -f ../../tests/raw_volume_gui_test.mk raw-volume-gui-test`，随后在独立 Xvfb、临时 `XDG_CONFIG_HOME`、系统 `LD_PRELOAD` 和 `LIBGL_ALWAYS_SOFTWARE=1` 下运行 `/tmp/vaa3d-raw-volume-gui`。不带参数使用临时 80 MiB 稀疏文件；可传入本次用户的 `P00165-T001-R001-S005-B1.v3draw` 路径测试真实文件（需要约 24 GB 额外可用内存）。该参数模式会检查此文件的已知尺寸和灰度范围。
 
 GUI 测试验证逐像素颜色一致性、取消及数据保留、真实主窗口加载、文件字节抽样比对，并记录墙钟耗时及 20 ms 界面定时器的最大间隔；要求间隔小于 2 秒。输出 `RAW_VOLUME_GUI_PASS` 表示通过，截图保存到 `/tmp/vaa3d-raw-loaded.png`。测试读取原文件但不修改它；缓存状态会明显影响计时，热缓存结果不能代表机械硬盘首次读取速度。
+
+## 多个 3D 窗口的 Object Manager
+
+每个 3D 视窗独立持有一个 Object Manager；标题包含所属视窗名称。原来的 `Attached to 3D view` 开关改为固定归属说明，无需手动绑定。切换视窗、刷新对象列表或关闭一个管理器，不会把另一个管理器指向其他视窗；关闭所属 3D 视窗或重建渲染器时，会先释放其管理器，避免访问旧对象。
+
+完整构建后，在仓库根目录运行 `make -C v3d_main/v3d -f Makefile -f ../../tests/object_manager_windows_gui_test.mk object-manager-windows-gui-test`。在独立 Xvfb、临时 `XDG_CONFIG_HOME`、系统 `LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libstdc++.so.6` 和 `LIBGL_ALWAYS_SOFTWARE=1` 下运行 `/tmp/vaa3d-object-manager-windows-gui`；输出 `OBJECT_MANAGER_WINDOWS_PASS` 表示通过。
+
+测试使用两个合成图像的真实 3D 窗口，通过界面按钮打开管理器，验证不同对象列表、标题/页签、激活切换、拒绝跨窗口重新关联、神经元/Marker/表面显示开关与 Y 翻转、撤销、列表刷新、管理器隐藏/重开、所属窗口关闭及渲染器重建清理。截图保存在 `/tmp/vaa3d-manager-A.png` 和 `/tmp/vaa3d-manager-B.png`，不使用或修改用户图像/标注。

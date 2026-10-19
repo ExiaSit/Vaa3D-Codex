@@ -73,7 +73,6 @@ bool V3dR_GLWidget::resumeCollaborationVR=false;
 
 //PROGRESS_DIALOG("", 0)
 V3dr_colormapDialog *V3dR_GLWidget::colormapDlg = 0;
-V3dr_surfaceDialog *V3dR_GLWidget::surfaceDlg = 0;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
 #if defined(USE_Qt5)
@@ -118,7 +117,6 @@ V3dR_GLWidget::~V3dR_GLWidget()
 	_in_destructor = true;
 
 	if (colormapDlg && colormapDlg->DecRef(this)<1) {}//colormapDlg = 0 safely called in destructor of colormapDlg;
-	if (surfaceDlg && surfaceDlg->DecRef(this)<1) {} //surfaceDlg = 0  safely called in destructor of surfaceDlg;
 
 	deleteRenderer(); //090711 RZC: maybe too late, because some version Qt destroyed GL context before here.
 
@@ -206,7 +204,14 @@ V3dR_GLWidget::V3dR_GLWidget(iDrawExternalParameter* idep, QWidget* mainWindow, 
 }
 
 //////////////////////////////////////////////////////
-void V3dR_GLWidget::deleteRenderer() {makeCurrent(); DELETE_AND_ZERO(renderer);} //090710 RZC: to delete renderer before ~V3dR_GLWidget()
+void V3dR_GLWidget::deleteRenderer()
+{
+    // Close the view's manager before freeing the renderer its table handlers access.
+    // This also handles renderer replacement, not just closing the window.
+    delete surfaceDlg; // Its destructor clears this view's pointer.
+    makeCurrent();
+    DELETE_AND_ZERO(renderer);
+} //090710 RZC: to delete renderer before ~V3dR_GLWidget()
 void V3dR_GLWidget::createRenderer() {makeCurrent(); deleteRenderer(); initializeGL();} //090710 RZC: to create renderer at any time
 
 void V3dR_GLWidget::choiceRenderer()
@@ -1994,7 +1999,7 @@ void V3dR_GLWidget::surfaceSelectDialog(int curTab)
 //	PROGRESS_PERCENT(20);
 
     if (! surfaceDlg)
-        surfaceDlg = new V3dr_surfaceDialog(this); //, mainwindow);
+        surfaceDlg = new V3dr_surfaceDialog(this, mainwindow);
     else
         surfaceDlg->linkTo(this);  //except isHidden, linkTo in updateTool triggered by ActivationChange event
 
@@ -2005,7 +2010,7 @@ void V3dR_GLWidget::surfaceSelectDialog(int curTab)
 		this->raise();       //110713
 		surfaceDlg->raise(); //090710
 
-		surfaceSelectTab(-1);  //-1 = last tab
+		surfaceSelectTab(curTab);  //-1 = last tab
 	}
 }
 

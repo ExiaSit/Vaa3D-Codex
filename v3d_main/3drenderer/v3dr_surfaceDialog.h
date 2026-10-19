@@ -82,11 +82,10 @@ public:
 	int meshDensity;
 
 protected:
-	V3dR_GLWidget *glwidget, *tolink_widget;
+	V3dR_GLWidget *glwidget; // Fixed owner for this Object Manager.
 	Renderer_gl1* renderer;
 	int iLastTab;   //updated in linkTo before re-create tab
 	bool bCanUndo, bMod;
-	bool bAttached;
 	QString title;
 	int last_marker; //updated in pressedClickHandler
 	bool isBatchOperation; //added by Y. Wang 20160525
@@ -96,9 +95,7 @@ protected:
 	void createFirst();
 
 public slots:
-	virtual void linkTo(QWidget* w); //link to new view
-	virtual int DecRef(QWidget* w); //override for attached widget closing
-	void onAttached(bool);
+	virtual void linkTo(QWidget* w); //refresh only the owning view
 
 	void undo();
 
@@ -197,7 +194,7 @@ protected:
 
 	QTabWidget *tabOptions;
 	QTableWidget *table[1+6];
-	QCheckBox *checkBox_accumulateLastHighlightHits, *checkBox_attachedToCurrentView;
+	QCheckBox *checkBox_accumulateLastHighlightHits;
 
 	// search group
 	QLabel *searchTextEditLabel, *searchTextResultLabel;
@@ -212,11 +209,10 @@ protected:
 
 	void init_members()
 	{
-		glwidget = tolink_widget = 0;
+		glwidget = 0;
 		renderer = 0;
 		iLastTab = -1;
 		bCanUndo = bMod = false;
-		bAttached = false;
 		title = tr("Object Manager");  //Object Pick/Color Options")); //090423 RZC: changed
 		last_marker = -1;
 		isBatchOperation = false;
@@ -229,7 +225,7 @@ protected:
         neuronSegmentType = 0;
 		for (int i=0; i<=6; i++)  table[i]=0; //by PHC, 090521 change to 5
 		tabOptions=0;
-		checkBox_accumulateLastHighlightHits = checkBox_attachedToCurrentView =0;//100809 RZC
+		checkBox_accumulateLastHighlightHits =0;//100809 RZC
 		searchTextEditLabel=searchTextResultLabel = 0;
 		searchTextEdit =0;
 		doSearchTextNext=doSearchTextPrev=doSearchTextHighlightAllHits =0;

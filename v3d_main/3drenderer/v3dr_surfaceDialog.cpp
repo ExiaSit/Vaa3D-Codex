@@ -68,7 +68,7 @@ V3dr_surfaceDialog::V3dr_surfaceDialog(V3dR_GLWidget* w, QWidget* parent)
 V3dr_surfaceDialog::~V3dr_surfaceDialog()
 {
 	qDebug("V3dr_surfaceDialog::~V3dr_surfaceDialog");
-	if (glwidget) glwidget->clearSurfaceDialog();
+	if (glwidget) glwidget->clearSurfaceDialog(this);
 }
 
 
@@ -99,73 +99,22 @@ void V3dr_surfaceDialog::undo()
 
 void V3dr_surfaceDialog::linkTo(QWidget* w)
 {
-	if (! w)  return;
+    // A manager stays with the view that created it, including while other views
+    // are activated or send updateTool()/linkTo() requests.
+    if (!w || (glwidget && w != glwidget)) return;
+    V3dR_GLWidget *view = qobject_cast<V3dR_GLWidget*>(w);
+    if (!view || !view->getRenderer()) return;
 
-	IncRef(w); //always add to reflist
-	qDebug("  V3dr_surfaceDialog::linkTo ( %p )  ref=%d", w, ref);
+    IncRef(w);
+    glwidget = view;
+    renderer = static_cast<Renderer_gl1*>(glwidget->getRenderer());
+    const QString viewTitle = glwidget->getMainWindow()
+            ? glwidget->getMainWindow()->windowTitle() : glwidget->getDataTitle();
+    setWindowTitle(viewTitle.isEmpty() ? title : title + " - " + viewTitle);
 
-	//100809, 110713
-	tolink_widget = (V3dR_GLWidget*)w;
-	if (bAttached && tolink_widget != glwidget) //attached
-	{
-		widget = (QWidget*)glwidget; //restore widget
-		return;               //so only update with attached widget
-	}
-
-	glwidget = (V3dR_GLWidget*)w;
-	renderer = (Renderer_gl1*)(glwidget->getRenderer());
-
-	iLastTab = getCurTab(); //110713
-	clearTables_fromTab();
-	createTables_addtoTab();
-}
-
-int V3dr_surfaceDialog::DecRef(QWidget* w) //110713
-{
-
-	int ref = SharedToolDialog::DecRef(w);
-	qDebug("  V3dr_surfaceDialog::DecRef ( %p )  ref=%d", w, ref);
-
-	if (bAttached && widget == 0)
-	{
-		if (ref>0) //110722, not deleted
-			checkBox_attachedToCurrentView->setChecked(false);
-
-		if (glwidget) glwidget->clearSurfaceDialog(); //110722, must do it before set glwidget = 0
-		glwidget = 0;
-		renderer = 0;
-	}
-	return ref;
-}
-
-void V3dr_surfaceDialog::onAttached(bool b)
-{
-	//qDebug("  V3dr_surfaceDialog::onAttached = %d", b);
-
-	//if (isHidden())  return;
-	//if (checkBox_attachedToCurrentView && checkBox_attachedToCurrentView->isChecked())
-	if (b)
-	{
-		if (glwidget)
-		{
-			QString viewTitle = glwidget->getMainWindow()->windowTitle();
-			setWindowTitle(title + tr(" attached: ") + viewTitle);
-		}
-		bAttached = true;
-		//qDebug("  V3dr_surfaceDialog::( attached to %p )", glwidget);
-	}
-	else
-	{
-		bAttached = false;
-		setWindowTitle(title);
-		if (tolink_widget)
-		{
-			tolink_widget = (V3dR_GLWidget*)bestLinkable(tolink_widget);
-			qDebug("  V3dr_surfaceDialog::onAttached( tolink %p )", tolink_widget);
-			if (tolink_widget) //110722
-				tolink_widget->updateTool();
-		}
-	}
+    iLastTab = getCurTab();
+    clearTables_fromTab();
+    createTables_addtoTab();
 }
 
 void V3dr_surfaceDialog::clearTables_fromTab()
@@ -309,8 +258,9 @@ void V3dr_surfaceDialog::createFirst()
 
     QGroupBox* checkGroup = new QGroupBox("Options");
     QGridLayout *checkLayout = new QGridLayout(checkGroup);
-    checkBox_attachedToCurrentView = new QCheckBox("Attached to 3D view");
-    checkLayout->addWidget(checkBox_attachedToCurrentView,			1,0, 1,2);
+    QLabel *ownerLabel = new QLabel(tr("Bound to this 3D view"));
+    ownerLabel->setToolTip(tr("Each 3D view has its own Object Manager. Changes apply only to the view named in this window's title."));
+    checkLayout->addWidget(ownerLabel, 1,0, 1,2);
     checkBox_accumulateLastHighlightHits = new QCheckBox("Accumulate last\n highlight search");
     checkLayout->addWidget(checkBox_accumulateLastHighlightHits,	2,0, 1,2);
 
@@ -378,7 +328,6 @@ void V3dr_surfaceDialog::createFirst()
 	if (searchTextEdit) connect(searchTextEdit, SIGNAL(returnPressed()), this, SLOT(findNext()));
 
 	//100809 RZC
-	if (checkBox_attachedToCurrentView) connect( checkBox_attachedToCurrentView, SIGNAL(toggled(bool)), this, SLOT(onAttached(bool)) );
 	if (markerLocalView) connect( markerLocalView, SIGNAL(clicked()), this, SLOT(onMarkerLocalView()) );
 
 	setWindowTitle(title);
