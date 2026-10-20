@@ -93,9 +93,8 @@ class FastFileDialog : public QDialog
         }
         selectedPath=info.absoluteFilePath();
         QSettings settings("HHMI","Vaa3D");settings.setValue("FastFileDialog/lastDirectory",directoriesOnly?selectedPath:info.absolutePath());
-        remember("FastFileDialog/recentDirectories",info.absolutePath());
-        if(directoriesOnly)remember("FastFileDialog/recentDirectories",selectedPath);
-        else remember("FastFileDialog/recentFiles",selectedPath);
+        remember("FastFileDialog/recentOpenedDirectories",directoriesOnly?selectedPath:info.absolutePath());
+        if(!directoriesOnly)remember("FastFileDialog/recentFiles",selectedPath);
         accept();
     }
     void navigate(const QString &input) {
@@ -185,9 +184,24 @@ public:
     FastFileDialog(QWidget *parent,const QString &title,const QString &directory,const QString &nameFilter,bool onlyDirs):QDialog(parent),directoriesOnly(onlyDirs) {
         setObjectName("fastFileDialog");setWindowTitle(title.isEmpty()?QString::fromUtf8("选择文件"):title);resize(820,580);
         currentPath=QDir::homePath();
+        // The legacy history mixed confirmed selections with every browsed directory.
+        // Seed the new history only from known selections; retain the old key for recovery.
+        QSettings historySettings("HHMI","Vaa3D");
+        const QString historyKey="FastFileDialog/recentOpenedDirectories";
+        if(!historySettings.contains(historyKey)) {
+            QStringList confirmed;
+            const QString last=historySettings.value("FastFileDialog/lastDirectory").toString();
+            if(!last.isEmpty())confirmed<<last;
+            for(const QString &file:historySettings.value("FastFileDialog/recentFiles").toStringList()) {
+                if(file.isEmpty())continue;
+                const QString folder=QFileInfo(file).absolutePath();
+                if(!confirmed.contains(folder))confirmed<<folder;
+            }
+            historySettings.setValue(historyKey,QStringList(confirmed.mid(0,20)));
+        }
         auto layout=new QVBoxLayout(this);auto navigation=new QHBoxLayout;layout->addLayout(navigation);
         auto up=new QPushButton(QString::fromUtf8("上级"));auto home=new QPushButton(QString::fromUtf8("主目录"));
-        pathHistory=historyBox("FastFileDialog/recentDirectories","fastPathHistory");pathEdit=pathHistory->lineEdit();pathEdit->setObjectName("fastPath");auto go=new QPushButton(QString::fromUtf8("转到"));
+        pathHistory=historyBox("FastFileDialog/recentOpenedDirectories","fastPathHistory");pathEdit=pathHistory->lineEdit();pathEdit->setObjectName("fastPath");auto go=new QPushButton(QString::fromUtf8("转到"));
         navigation->addWidget(up);navigation->addWidget(home);navigation->addWidget(pathHistory,1);navigation->addWidget(go);
         auto options=new QHBoxLayout;layout->addLayout(options);
         searchEdit=new QLineEdit;searchEdit->setObjectName("fastSearch");searchEdit->setPlaceholderText(QString::fromUtf8("搜索当前目录中的文件名"));
@@ -209,7 +223,6 @@ public:
             if(!scan || !scan->done)return;poll->stop();
             if(!scan->error.isEmpty()){status->setText(QString::fromUtf8("读取失败：")+scan->error);return;}
             entries=std::move(scan->entries);filter();setProperty("directoryLoaded",true);
-            remember("FastFileDialog/recentDirectories",currentPath);
         });
         connect(pathHistory,static_cast<void(QComboBox::*)(int)>(&QComboBox::activated),this,[this](int){navigate(pathEdit->text());});
         // Selecting a recent file fills the field; Open/Return confirms the choice.

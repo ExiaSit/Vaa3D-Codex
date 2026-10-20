@@ -120,3 +120,9 @@ XDG_CONFIG_HOME="$(mktemp -d /tmp/vaa3d-mask-gui-XXXXXX)" LD_PRELOAD=/usr/lib/x8
 ```
 
 成功标记分别为 `MASK_TIFF_READER_PASS`、`MARCHING_PARALLEL_PASS`、`MASK_ASYNC_GUI_PASS`。读取器检查 44 组像素/通道组合、取消、错误通道和损坏/截断文件；算法回归比较并行与串行结果，并验证取消和异常后可重用。GUI 回归创建两个真实 3D 视窗，验证同时导入、主窗口及另一视窗响应、滚轮缩放、显示开关与 Y flip、计算中和上传中取消、替换、失败保留数据、关闭视窗及渲染器销毁。截图输出 `/tmp/vaa3d-mask-async.png`，无用户图像/标注写入。
+
+## 最近目录只记录最终选择
+
+文件选择器的目录下拉框只在用户确认打开文件或选择文件夹时更新：文件记其所在目录，文件夹记自身；浏览、转到、返回上级、刷新和取消不写入历史。保留最近 20 个最终目录并去重，文件名下拉框仍保留最近文件。
+
+目录历史改用 `HHMI/Vaa3D` 设置中的 `FastFileDialog/recentOpenedDirectories`。首次使用从 `lastDirectory` 和 `recentFiles` 的所在目录重建，避免继承旧浏览路径；旧 `recentDirectories` 键原样保留，可供旧版本或恢复使用。旧记录无法区分“仅浏览”和“确认选中文件夹”，所以更早且无法从最近文件推断的文件夹需重新选择。删除新键可在下次打开文件选择器时按上述规则重建；无需删除整个用户配置。
