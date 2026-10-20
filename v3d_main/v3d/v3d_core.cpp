@@ -5238,7 +5238,10 @@ void XFormWidget::doImage3DView(bool tmp_b_use_512x512x256, int b_local, V3DLONG
 
             // @ADDED by Alessandro on 2015-09-29. Postpone show() if required.
             if(show)
+            {
                 my3dwin->show();
+                my3dwin->raise_and_activate();
+            }
 		}
 		catch (...)
 		{

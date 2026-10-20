@@ -823,23 +823,36 @@ V3dR_MainWindow * MainWindow::find3DViewer(QString fileName)
 }
 void MainWindow::loadV3DFile(QString fileName, bool b_putinrecentfilelist, bool b_forceopen3dviewer)
 {
+    // A newly opened image must also raise its containing top-level window.
+    // Selecting the MDI child alone leaves it hidden behind existing 3D viewers.
+    auto presentImage = [this](XFormWidget *child) {
+        setWindowState(windowState() & ~Qt::WindowMinimized);
+        show();
+        child->setWindowState(child->windowState() & ~Qt::WindowMinimized);
+        child->show();
+#if defined(USE_Qt5)
+        workspace->setActiveSubWindow(child);
+#else
+        workspace->setActiveWindow(child);
+#endif
+        child->raise();
+        raise();
+        activateWindow();
+        child->setFocus();
+    };
     if (!fileName.isEmpty())
     {
         XFormWidget *existing_imgwin = findMdiChild(fileName);
         if (existing_imgwin)
         {
 
-#if defined(USE_Qt5)
-            workspace->setActiveSubWindow(existing_imgwin);
-#else
-            workspace->setActiveWindow(existing_imgwin);
-#endif
+            presentImage(existing_imgwin);
             return;
         }
         V3dR_MainWindow *existing_3dviewer = find3DViewer(fileName);
         if (existing_3dviewer)
         {
-            existing_3dviewer->activateWindow();
+            existing_3dviewer->raise_and_activate();
             return;
         }
 
@@ -871,12 +884,11 @@ void MainWindow::loadV3DFile(QString fileName, bool b_putinrecentfilelist, bool 
                             {
                                 child_rawimg->getImageData()->flip(axis_y);
                             }
+                            presentImage(child_rawimg);
                             if ((b_forceopen3dviewer || (global_setting.b_autoOpenImg3DViewer))&& cc.pointcloud_file_list.size()<=0 && cc.swc_file_list.size()<=0 && cc.surface_file_list.size()<=0)
                             {
                                 child_rawimg->doImage3DView();
                             }
-
-                            child_rawimg->show();
 
 #if defined(USE_Qt5)
                             workspace->cascadeSubWindows();
@@ -904,7 +916,7 @@ void MainWindow::loadV3DFile(QString fileName, bool b_putinrecentfilelist, bool 
                         child_maskimg = createMdiChild();
                         if (child_maskimg->loadFile(cc.labelfield_image_file_list.at(i))) {
                             statusBar()->showMessage(tr("File loaded [%1]").arg(cc.labelfield_image_file_list.at(i)), 2000);
-                            child_maskimg->show();
+                            presentImage(child_maskimg);
 
 #if defined(USE_Qt5)
                             workspace->cascadeSubWindows();
@@ -974,6 +986,7 @@ void MainWindow::loadV3DFile(QString fileName, bool b_putinrecentfilelist, bool 
                     my3dwin->setParent(0);
                     my3dwin->setDataTitle(fileName);
                     my3dwin->show();
+                    my3dwin->raise_and_activate();
                     mypara_3Dview->window3D = my3dwin;
                     if (child_rawimg)
                     {
@@ -1043,6 +1056,7 @@ void MainWindow::loadV3DFile(QString fileName, bool b_putinrecentfilelist, bool 
                 my3dwin->setParent(0);
                 my3dwin->setDataTitle(fileName);
                 my3dwin->show();
+                my3dwin->raise_and_activate();
                 mypara_3Dview->window3D = my3dwin;
             }
             catch (...)
@@ -1076,7 +1090,7 @@ void MainWindow::loadV3DFile(QString fileName, bool b_putinrecentfilelist, bool 
                 XFormWidget *child = createMdiChild();
                 if (child->loadFile(cur_atlas_list[kk].imgfile)) {
                     statusBar()->showMessage(tr("File loaded [%1]").arg(cur_atlas_list[kk].imgfile), 2000);
-                    child->show();
+                    presentImage(child);
 
 #if defined(USE_Qt5)
                     workspace->cascadeSubWindows();
@@ -1165,7 +1179,7 @@ void MainWindow::loadV3DFile(QString fileName, bool b_putinrecentfilelist, bool 
                     {
                         child->getImageData()->flip(axis_y);
                     }
-                    child->show();
+                    presentImage(child);
                     //workspace->cascade(); //080821 //110805, by PHC, since RZC claims the resize MDI works now, so this should not be needed.
                     // create sampled data 512x512x256 and save it for use in 3dviewer
                     // to improve openning speed. ZJL 111019
@@ -1395,7 +1409,7 @@ void MainWindow::loadV3DFile(QString fileName, bool b_putinrecentfilelist, bool 
                     {
                         child->getImageData()->flip(axis_y);
                     }
-                    child->show();
+                    presentImage(child);
                     if (b_forceopen3dviewer || (global_setting.b_autoOpenImg3DViewer))
                     {
                         child->doImage3DView();
