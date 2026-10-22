@@ -641,8 +641,17 @@ void V3dr_surfaceDialog::doubleClickHandler(int i, int j)
 		//t->editItem(curItem); // QItemEditorFactory->registerEditor->getColor
 
 		QColor qcolor = QCOLORV(curItem->data(0));
-		if (! v3dr_getColorDialog( &qcolor))  return;
-		curItem->setData(0, qVariantFromValue(qcolor));
+        const bool neuronColor = (t==table[stNeuronStructure]);
+        // SWC alpha 0/1/2 means an automatic palette, not transparency.
+        // A manual RGB choice must switch this object to its fixed color.
+        if(neuronColor)qcolor.setAlpha(255);
+		if (! v3dr_getColorDialog( &qcolor, this))  return;
+        if(neuronColor)qcolor.setAlpha(255);
+        // Activation while the color dialog is open can recreate the tables.
+        t=currentTableWidget();
+        if(!t || i<0 || i>=t->rowCount() || j>=t->columnCount())return;
+        curItem=t->item(i,j);
+        if(curItem)curItem->setData(0, qVariantFromValue(qcolor));
 
 		//show();
 	}
@@ -717,7 +726,10 @@ void V3dr_surfaceDialog::selectedColor(int map)
 	{
 		//qcolor0 = QColorDialog::getColor(QColor());
 		//if (! qcolor0.isValid()) return;           // this is no use for clicking Cancel by user, Qt's bug !!!
-		if (! v3dr_getColorDialog( &qcolor0))  return; //090424 RZC
+		if (! v3dr_getColorDialog( &qcolor0, this))  return; //090424 RZC
+        t=currentTableWidget();
+        if(!t)return;
+        if(t==table[stNeuronStructure])qcolor0.setAlpha(255);
 	}
 
 	PROGRESS_DIALOG("Updating color    ", this);

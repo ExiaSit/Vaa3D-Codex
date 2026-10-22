@@ -126,3 +126,9 @@ XDG_CONFIG_HOME="$(mktemp -d /tmp/vaa3d-mask-gui-XXXXXX)" LD_PRELOAD=/usr/lib/x8
 文件选择器的目录下拉框只在用户确认打开文件或选择文件夹时更新：文件记其所在目录，文件夹记自身；浏览、转到、返回上级、刷新和取消不写入历史。保留最近 20 个最终目录并去重，文件名下拉框仍保留最近文件。
 
 目录历史改用 `HHMI/Vaa3D` 设置中的 `FastFileDialog/recentOpenedDirectories`。首次使用从 `lastDirectory` 和 `recentFiles` 的所在目录重建，避免继承旧浏览路径；旧 `recentDirectories` 键原样保留，可供旧版本或恢复使用。旧记录无法区分“仅浏览”和“确认选中文件夹”，所以更早且无法从最近文件推断的文件夹需重新选择。删除新键可在下次打开文件选择器时按上述规则重建；无需删除整个用户配置。
+
+## Object Manager 的 SWC 手动颜色
+
+SWC 对象的 Alpha 值 0/1/2 在旧格式中表示按类型/分段/多神经元配色，并不表示透明度。双击 Object Manager 的 SWC 颜色格，或使用 `Color >> Single Color...` 后，会切换选中对象为固定 RGB 颜色；固定颜色优先于全局的祖先、审阅、置信度等节点配色。编辑工具的节点高亮继续生效。需要自动配色时，使用 `Neuron Segment Colorful` / `Multi-neuron Colorful` 菜单；取消颜色对话框不修改对象。此调整不改变 SWC 节点的类型、坐标及原文件。
+
+完整构建后运行 `make -C v3d_main/v3d -f Makefile -f ../../tests/swc_color_gui_test.mk swc-color-gui-test`，在独立 Xvfb、临时 `XDG_CONFIG_HOME`、`LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libstdc++.so.6`、`LIBGL_ALWAYS_SOFTWARE=1` 下运行 `/tmp/vaa3d-swc-color-gui`。测试导入两个临时 SWC，经真实 QColorDialog 改色，在关闭坐标轴及边框后检查线条/管状渲染的实际颜色像素，并验证各对象独立性、全局配色优先级、取消、自动配色标签和批量单色操作。成功标记 `SWC_COLOR_GUI_PASS`，截图 `/tmp/vaa3d-swc-custom-colors.png`。验证平台为本机 Linux Qt 5 + 软件 OpenGL，未覆盖其他平台的原生颜色选择器。

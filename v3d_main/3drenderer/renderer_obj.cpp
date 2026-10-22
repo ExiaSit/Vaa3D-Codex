@@ -2471,6 +2471,7 @@ void Renderer_gl1::drawNeuronTree(int index)
 	const QList <NeuronSWC> & listNeuron = listNeuronTree.at(index).listNeuron;
 	const QHash <int, int> & hashNeuron = listNeuronTree.at(index).hashNeuron;
 	RGBA8 rgba = listNeuronTree.at(index).color;
+    const bool automaticColor = rgba.a<=2; // 0: type, 1: segment, 2: multi-neuron palette.
 	bool on    = listNeuronTree.at(index).on;
 	bool editable = listNeuronTree.at(index).editable;
     int cur_linemode = listNeuronTree.at(index).linemode; //added by PHC 20130926
@@ -2539,7 +2540,7 @@ void Renderer_gl1::drawNeuronTree(int index)
 			//qDebug("%i-%i  (%g %g %g) - (%g %g %g)", i,j,  S1.x,S1.y,S1.z, S0.x,S0.y,S0.z);
 			//if (lineType==1)
 			//if (rgba.a==0 || editable) //make the skeleton be able to use the default color by adjusting alpha value
-			if (rgba.a==0 || rgba.a==1 || rgba.a==2) //180411 RZC: 0--default, 1--segment colorful, 2--multi-neuron colorful
+			if (automaticColor) //180411 RZC: 0--default, 1--segment colorful, 2--multi-neuron colorful
 			{
 				int type = S1.type; 			 // 090925
 				//if (editable)
@@ -2614,7 +2615,7 @@ void Renderer_gl1::drawNeuronTree(int index)
 				glMultMatrixf(&r[0][0]);
                 if (length > 0)
 				{
-                    setNeuronColor(S1, seconds);
+                    if(automaticColor)setNeuronColor(S1, seconds);
                     //v3d_msg(QString("").setNum(i).prepend("swc node = "), 0);
                     glPushMatrix();
 					//					float s,a,b,c;
@@ -2650,7 +2651,7 @@ void Renderer_gl1::drawNeuronTree(int index)
 				if (length >0)  // branch line
 				{
 					glLineWidth(lineWidth);
-					setNeuronColor(S1, seconds);
+					if(automaticColor)setNeuronColor(S1, seconds);
                     //if(colorByAncestry){
                      //   glColor3ub(255, 255, 0);
                      //   setColorByAncestry(S1, seconds);
@@ -2694,7 +2695,7 @@ void Renderer_gl1::drawNeuronTree(int index)
 				}
 				else if (rootSize)// root point
 				{
-                setNeuronColor(S1,seconds);
+                if(automaticColor)setNeuronColor(S1,seconds);
 					glPointSize(rootSize);
                     //20151203 ZMS: Highlight selected nodes
                     if((i == highlightedNode || i == selectedStartNode || i == highlightedStartNode) && 
