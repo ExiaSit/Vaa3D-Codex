@@ -1,6 +1,8 @@
 
 #ifdef TEX3D
 uniform sampler3D volume;
+uniform vec3 volume_min;
+uniform vec3 volume_max;
 #else
 uniform sampler2D volume;
 #endif
@@ -8,6 +10,8 @@ uniform sampler2D volume;
 uniform sampler2D colormap;
 
 uniform vec3 channel;
+uniform int channel_count;
+uniform vec4 channel_enabled;
 uniform int blend_mode;
 uniform int format_bgra;
 
@@ -16,7 +20,7 @@ void main()
 {
 
 #ifdef TEX3D
-	vec4 vColor = texture3D(volume, gl_TexCoord[0].xyz);
+	vec4 vColor = texture3D(volume, clamp(gl_TexCoord[0].xyz, volume_min, volume_max));
 #else
 	vec4 vColor = texture2D(volume, gl_TexCoord[0].xy);
 #endif
@@ -35,10 +39,20 @@ void main()
 	vec4 C3 = texture2D(colormap, vec2(vColor.b, channel.z));
 #endif
 
+    // Alpha in the volume texture holds the fourth source channel, not opacity.
+    vec4 C4 = vec4(0.0);
+    if (channel_count >= 4) C4 = texture2D(colormap, vec2(vColor.a, 1.0));
+    if (channel_count < 3) C3 = vec4(0.0);
+    if (channel_count < 2) C2 = vec4(0.0);
+    C1 *= channel_enabled.x;
+    C2 *= channel_enabled.y;
+    C3 *= channel_enabled.z;
+    C4 *= channel_enabled.w;
+    vec3 aC4 = C4.rgb * C4.a;
 	vec3 aC1 = C1.rgb * C1.a;
 	vec3 aC2 = C2.rgb * C2.a;
 	vec3 aC3 = C3.rgb * C3.a;
-	float Amean = (C1.a + C2.a + C3.a)/3.0;
+	float Amean = (C1.a + C2.a + C3.a + C4.a)/(channel_count == 1 ? 1.0 : max(3.0, float(channel_count)));
 				//= pow((C1.a * C2.a * C3.a), 1.0/3.0);
 	float Amax	= max(C1.a, max(C2.a, C3.a));
 
@@ -46,14 +60,14 @@ void main()
 	if (blend_mode==0) // cross-section
 	{
 		float Asec = Amean;
-		oColor.rgb = (aC1 + aC2 + aC3);
+		oColor.rgb = (aC1 + aC2 + aC3 + aC4);
 		oColor.a = Asec;
 	}
 	else if (blend_mode==1) // alpha-blending
 	{
 		float Ablend = Amean;
 		//oColor.rgb = (C1.rgb + C2.rgb + C3.rgb)*Ablend;
-		oColor.rgb = (aC1 + aC2 + aC3)*Ablend;
+		oColor.rgb = (aC1 + aC2 + aC3 + aC4)*Ablend;
 		oColor.a = Ablend;
 
 //		float Ablend = Amean;
@@ -64,17 +78,17 @@ void main()
 //		oColor.a = Ablend;
 
 //		float Amip = Amean;
-//		oColor.rgb = max(aC1.rgb, max(aC2.rgb, aC3.rgb));
+//		oColor.rgb = max(max(aC1.rgb, aC2.rgb), max(aC3.rgb, aC4.rgb));
 //		oColor.a = Amip;
 	}
 	else // max-intensity
 	{
 		float Amip = Amean;
-		oColor.rgb = max(aC1.rgb, max(aC2.rgb, aC3.rgb));
+		oColor.rgb = max(max(aC1.rgb, aC2.rgb), max(aC3.rgb, aC4.rgb));
 		oColor.a = Amip;
 
 //		float Asec = Amean;
-//		oColor.rgb = (aC1 + aC2 + aC3);
+//		oColor.rgb = (aC1 + aC2 + aC3 + aC4);
 //		oColor.a = Asec;
 	}
 

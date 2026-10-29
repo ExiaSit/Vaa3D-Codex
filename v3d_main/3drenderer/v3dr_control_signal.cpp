@@ -84,7 +84,8 @@ void V3dR_MainWindow::createControlWidgets()
     toolBtnGroup = new QWidget;
     QHBoxLayout *layout_toolBtnGroup = new QHBoxLayout(toolBtnGroup);
 
-    volumeColormapButton = new QPushButton("Vol Colormap");
+    volumeColormapButton = new QPushButton(tr("通道颜色 / Colormap"));
+    volumeColormapButton->setToolTip(tr("Change each volume channel’s color and visibility (up to four channels)."));
     surfobjManagerButton = new QPushButton("Object Manager"); //Pick/Color"); // 090422 RZC
     layout_toolBtnGroup->addWidget(volumeColormapButton);
     layout_toolBtnGroup->addWidget(surfobjManagerButton);

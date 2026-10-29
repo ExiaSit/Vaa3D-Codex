@@ -44,7 +44,7 @@ Peng, H, Ruan, Z., Atasoy, D., and Sternson, S. (2010) 鈥淎utomatic reconstruc
 #include "renderer_gl1.h"
 
 
-#define N_CHANNEL 3
+#define N_CHANNEL 4
 #define FILL_CHANNEL 4  // power_of_two
 
 /////////////////////////////////////////////////////////////////////////
@@ -98,6 +98,7 @@ public:
 	virtual bool _streamTex_ready();
 
 public:
+    bool volumeChannelEnabled[N_CHANNEL];
     RGBA8 colormap[FILL_CHANNEL][256];      // [n-channel][256-intensity]
 
 ////////////////////////////////////
@@ -117,6 +118,7 @@ private:
 	{
 		shader = shaderTex2D=shaderTex3D = shaderObj = 0;
 		texColormap = 0;
+        for (int ch=0; ch<N_CHANNEL; ++ch) volumeChannelEnabled[ch]=true;
 		pboZ = pboY = pboX = 0;
 		pbo_texture_format = pbo_image_format = pbo_image_type = -1;
 	}

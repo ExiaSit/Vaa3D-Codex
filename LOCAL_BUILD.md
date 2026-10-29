@@ -224,3 +224,20 @@ XDG_CONFIG_HOME="$(mktemp -d /tmp/vaa3d-axis-config-XXXXXX)" LD_PRELOAD=/usr/lib
 SWC 对象的 Alpha 值 0/1/2 在旧格式中表示按类型/分段/多神经元配色，并不表示透明度。双击 Object Manager 的 SWC 颜色格，或使用 `Color >> Single Color...` 后，会切换选中对象为固定 RGB 颜色；固定颜色优先于全局的祖先、审阅、置信度等节点配色。编辑工具的节点高亮继续生效。需要自动配色时，使用 `Neuron Segment Colorful` / `Multi-neuron Colorful` 菜单；取消颜色对话框不修改对象。此调整不改变 SWC 节点的类型、坐标及原文件。
 
 完整构建后运行 `make -C v3d_main/v3d -f Makefile -f ../../tests/swc_color_gui_test.mk swc-color-gui-test`，在独立 Xvfb、临时 `XDG_CONFIG_HOME`、`LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libstdc++.so.6`、`LIBGL_ALWAYS_SOFTWARE=1` 下运行 `/tmp/vaa3d-swc-color-gui`。测试导入两个临时 SWC，经真实 QColorDialog 改色，在关闭坐标轴及边框后检查线条/管状渲染的实际颜色像素，并验证各对象独立性、全局配色优先级、取消、自动配色标签和批量单色操作。成功标记 `SWC_COLOR_GUI_PASS`，截图 `/tmp/vaa3d-swc-custom-colors.png`。验证平台为本机 Linux Qt 5 + 软件 OpenGL，未覆盖其他平台的原生颜色选择器。
+
+## 3D 浏览器逐通道颜色
+
+点击 3D 窗口的“通道颜色 / Colormap”按钮。在每个 Channel 上方点击“颜色 / Color…”选择显示颜色，“显示 / Show”独立控制该通道显隐；更改立即生效，仅作用于所属 3D 视窗。原有 RGBA 强度曲线仍可编辑，对比度调节保留通道颜色。单通道默认白色，多通道默认红、绿、蓝、白，控件仅显示实际存在的通道。
+
+当前支持前四个通道；Channel 1–4 按原图顺序排列，不自动读取 OME 通道名称或染料配色。`P209-T1-R1-S19-4color.tif` 的原文件顺序为 DAPI、FITC、TexasRed、Cy5，可自行选择蓝、绿、红、洋红。颜色与显隐可通过 Save 保存为 `.vaa3dcm`，通过 Load 重用；兼容旧三通道曲线文件，缺少的通道保持现有曲线。Undo 恢复首次打开此窗口颜色面板时的状态。关闭/重建视窗后未保存的颜色设置不保留。
+
+第四通道现在作为独立标量参与 MIP、Alpha 和切面渲染，不再只映射前三个通道。此功能使用 GLSL 体渲染；四通道完整 3D 纹理固定采用 RGBA8，避免本机软件驱动在 S3TC 压缩 3D 纹理中错误采样 alpha，显存用量可能高于压缩纹理。保留既有显示下采样及 8 位纹理映射，不改变原图位深、像素、二维通道颜色、SWC 或 Mask 颜色。旧进程不能热更新，需打开新版实例。
+
+完整构建后运行：
+
+```bash
+make -C v3d_main/v3d -f Makefile -f ../../tests/volume_channel_colors_gui_test.mk volume-channel-colors-gui-test
+XDG_CONFIG_HOME="$(mktemp -d /tmp/vaa3d-channel-colors-XXXXXX)" LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libstdc++.so.6 LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a -s '-screen 0 1800x1200x24' /tmp/vaa3d-volume-channel-colors-gui
+```
+
+可附加真实四通道 uint16 TIFF 路径，使用同一界面验证其通道。测试检查真实选色对话框、各通道 framebuffer 颜色/显隐、取消、对比度、二维/三维纹理、压缩开关、PBO streaming（合成数据）、MIP/Alpha/切面、颜色文件保存/载入与旧文件/无效索引、图像内存哈希不变；合成模式还检查单通道默认白色、Undo、两视窗隔离及渲染器销毁时面板清理。成功标记 `VOLUME_CHANNEL_COLORS_GUI_PASS`，截图位于 `/tmp/vaa3d-channel-controls*.png` 和 `/tmp/vaa3d-channel-volume*.png`，不覆盖源图像。

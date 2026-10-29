@@ -258,8 +258,16 @@ void Renderer_gl2::shaderTexBegin(bool stream)
 
 		float n = FILL_CHANNEL-1; // 0-based
 		shader->setUniform3f("channel", 0/n, 1/n, 2/n);
+        shader->setUniform1i("channel_count", qMin(4, int(dim4)));
+        shader->setUniform4f("channel_enabled", volumeChannelEnabled[0], volumeChannelEnabled[1],
+                            volumeChannelEnabled[2], volumeChannelEnabled[3]);
 		shader->setUniform1i("blend_mode", renderMode);
 		shader->setUniform1i("format_bgra", format_bgra);
+        if (texture_unit0_3D && !stream) {
+            // Do not sample uninitialized padding beyond the last voxel center.
+            shader->setUniform3f("volume_min", .5f/fillX, .5f/fillY, .5f/fillZ);
+            shader->setUniform3f("volume_max", (realX-.5f)/fillX, (realY-.5f)/fillY, (realZ-.5f)/fillZ);
+        }
 
 		// switch to colormap texture
 		glActiveTextureARB(GL_TEXTURE1_ARB);
@@ -356,7 +364,7 @@ void Renderer_gl2::initColormap()
 	{
 		for (int i=0; i<256; i++) // intensity
 		{
-			for (int j=0; j<3; j++)  colormap[ch][i].c[j] = (ch==j)*255;	colormap[ch][i].a = i;
+			for (int j=0; j<3; j++)  colormap[ch][i].c[j] = (ch==j || ch==3 || (dim4==1 && ch==0))*255;	colormap[ch][i].a = i;
 			//for (int j=0; j<3; j++)  colormap[ch][i].c[j] = (ch!=j)*i;	colormap[ch][i].a = i;
 		}
 

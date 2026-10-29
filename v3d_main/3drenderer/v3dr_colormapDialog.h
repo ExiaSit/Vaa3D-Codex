@@ -61,6 +61,12 @@ protected:
 	V3dR_GLWidget* glwidget;
 	Renderer_gl2* renderer;
     GradientEditor *m_editor[N_CHANNEL];
+    QGroupBox *editorGroup[N_CHANNEL];
+    QPushButton *colorButton[N_CHANNEL];
+    QCheckBox *channelCheck[N_CHANNEL];
+    bool oldEnabled[N_CHANNEL];
+    bool updatingControls = false;
+    void refreshChannelControls();
 	QPolygonF oldcurve[N_CHANNEL][4];
 	bool bCanUndo, bMod;
 
@@ -70,13 +76,14 @@ protected:
 
 	void createFirst();
 	void saveOldcurve();
-	void loadColormapFile(const QString& filename);
-	void saveColormapFile(const QString& filename);
+
 
 	void setDefault(int ich, int jch, int k);
     // k= 0(0-0), 1(1-1), 2(0.5-0.5), 3,4(0-1), 5(1-0), 6(0-1-0), 7(0-1-1-0), 8(0-1-0-1)
 
 public slots:
+    void loadColormapFile(const QString& filename);
+    void saveColormapFile(const QString& filename);
 	virtual void linkTo(QWidget* w); //link to new view
 
 	void setDefault(int k)
@@ -125,6 +132,11 @@ public slots:
 //			setDefault(2,0, 2); setDefault(2,1, 2); setDefault(2,2, 0); setDefault(2,3, 8);
 //			break;
 		}
+        for (int ch=0; ch<N_CHANNEL; ++ch) channelCheck[ch]->setChecked(true);
+        for (int j=0; j<3; ++j) setDefault(3,j,1);
+        setDefault(3,3,(k>=2 && k<=4)?0:4);
+        if (renderer && renderer->dim4==1 && k==0)
+            for (int j=0; j<3; ++j) setDefault(0,j,1);
 		updateColormap();
 	}
 	void setDefault0() {setDefault(0);}

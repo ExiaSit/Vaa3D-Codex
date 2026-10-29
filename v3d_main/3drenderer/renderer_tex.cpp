@@ -1231,6 +1231,10 @@ void Renderer_gl1::loadVol()
 		if (texture_format==GL_COMPRESSED_RGBA_ARB && GLEE_EXT_texture_compression_s3tc)
 			texture_format = GL_COMPRESSED_RGBA_S3TC_DXT5_EXT;
 	}
+    // A fourth fluorescence channel occupies alpha. S3TC compressed 3D textures
+    // can sample alpha as 1 on drivers that only support these codecs in 2D.
+    // Keep all four scalar components in a supported, lossless 3D format.
+    if (dim4>=4 && tex3D) texture_format=GL_RGBA8;
 	if (image_format==-1)
 	{
 		image_format = GL_RGBA;

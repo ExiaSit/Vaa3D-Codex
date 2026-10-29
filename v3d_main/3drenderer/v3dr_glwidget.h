@@ -167,7 +167,7 @@ public:
 	Renderer* renderer;
     QString data_title;
 	QString dropUrl;
-    static V3dr_colormapDialog* colormapDlg;
+    V3dr_colormapDialog* colormapDlg = nullptr;
     V3dr_surfaceDialog* surfaceDlg; // One Object Manager per 3D view.
 	//static SurfaceObjGeometryDialog *surfaceObjGeoDlg;
     int neuronIndex;

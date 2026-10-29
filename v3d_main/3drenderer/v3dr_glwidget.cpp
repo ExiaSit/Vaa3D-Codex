@@ -72,7 +72,6 @@ bool V3dR_GLWidget::resumeCollaborationVR=false;
 #endif
 
 //PROGRESS_DIALOG("", 0)
-V3dr_colormapDialog *V3dR_GLWidget::colormapDlg = 0;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
 #if defined(USE_Qt5)
@@ -115,8 +114,6 @@ V3dR_GLWidget::~V3dR_GLWidget()
 {
 	qDebug("V3dR_GLWidget::~V3dR_GLWidget =======================================");
 	_in_destructor = true;
-
-	if (colormapDlg && colormapDlg->DecRef(this)<1) {}//colormapDlg = 0 safely called in destructor of colormapDlg;
 
 	deleteRenderer(); //090711 RZC: maybe too late, because some version Qt destroyed GL context before here.
 
@@ -211,6 +208,7 @@ void V3dR_GLWidget::deleteRenderer()
     // Close the view's manager before freeing the renderer its table handlers access.
     // This also handles renderer replacement, not just closing the window.
     delete surfaceDlg; // Its destructor clears this view's pointer.
+    delete colormapDlg; // Close channel controls before their renderer is freed.
     makeCurrent();
     DELETE_AND_ZERO(renderer);
 } //090710 RZC: to delete renderer before ~V3dR_GLWidget()
@@ -1816,41 +1814,17 @@ void V3dR_GLWidget::setContrast(int t)
     if (curr_renderer)
     {
         float exp_val = pow(10.0f, t/100.0f);
-        for(int j=0; j<255; j++)
-        {
-            // This is the value being manipulated
-            int val= (int)(pow(j/255.0f, exp_val) * 255.0f);
-
-            (curr_renderer->colormap[0][j]).r = (unsigned char)255;
-            (curr_renderer->colormap[0][j]).g = (unsigned char)0;
-            (curr_renderer->colormap[0][j]).b = (unsigned char)0;
-            (curr_renderer->colormap[0][j]).a = (unsigned char)val;
-
-            (curr_renderer->colormap[1][j]).r = (unsigned char)0;
-            (curr_renderer->colormap[1][j]).g = (unsigned char)255;
-            (curr_renderer->colormap[1][j]).b = (unsigned char)0;
-            (curr_renderer->colormap[1][j]).a = (unsigned char)val;
-
-            (curr_renderer->colormap[2][j]).r = (unsigned char)0;
-            (curr_renderer->colormap[2][j]).g = (unsigned char)0;
-            (curr_renderer->colormap[2][j]).b = (unsigned char)255;
-            (curr_renderer->colormap[2][j]).a = (unsigned char)val;
-
-            (curr_renderer->colormap[3][j]).r = (unsigned char)205;
-            (curr_renderer->colormap[3][j]).g = (unsigned char)205;
-            (curr_renderer->colormap[3][j]).b = (unsigned char)205;
-            (curr_renderer->colormap[3][j]).a = (unsigned char)205;
-        }
-        for (int ch=0; ch<3; ch++)
-        {
-            for (int j=0; j<4; j++) // RGBA
-            {
-                curr_renderer->colormap_curve[ch][j].clear();
-                int y;
-                y = curr_renderer->colormap[ch][0].c[j];	set_colormap_curve(curr_renderer->colormap_curve[ch][j],  0.0,  y);
-                y = curr_renderer->colormap[ch][255].c[j];	set_colormap_curve(curr_renderer->colormap_curve[ch][j],  1.0,  y);
+        // Contrast changes opacity, preserving each channel's chosen display color.
+        for (int ch=0; ch<N_CHANNEL; ++ch) {
+            QPolygonF alpha;
+            for (int j=0; j<256; ++j) {
+                int value=int(pow(j/255.0f,exp_val)*255.0f);
+                curr_renderer->colormap[ch][j].a=value;
+                alpha << QPointF(j/255.0,value/255.0);
             }
+            curr_renderer->colormap_curve[ch][3]=alpha;
         }
+        if (colormapDlg) colormapDlg->updateStops();
         POST_updateGL();
     }
 }
