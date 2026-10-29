@@ -344,7 +344,6 @@ void Renderer_gl1::setupData(void* idep)
 void Renderer_gl1::cleanData()
 {
 	qDebug("   Renderer_gl1::cleanData");
-    localHiddenBoxes.clear();localHidePreviewValid=false;
 
 	if (isSimulatedData && data4dp) {
 		isSimulatedData = false;
@@ -1627,23 +1626,6 @@ void Renderer_gl1::_drawStack( double ts, double th, double tw,
 			double ids = step * k*ds/thickness;
 			double idts = ts*ids;
 
-            if(!localHiddenBoxes.empty()) {
-                LocalHidePolygon quad;
-                const double u[]={w0,w1,w1,w0},v[]={h0,h0,h1,h1};
-                for(int corner=0;corner<4;++corner) {
-                    std::array<double,3> p=stack_i==1?std::array<double,3>{{u[corner],v[corner],s+ids}}
-                        :stack_i==2?std::array<double,3>{{u[corner],s+ids,v[corner]}}
-                        :std::array<double,3>{{s+ids,u[corner],v[corner]}};
-                    std::array<double,3> t=b_tex3d
-                        ?(stack_i==1?std::array<double,3>{{tw*u[corner],th*v[corner],tss+idts}}
-                          :stack_i==2?std::array<double,3>{{tw*u[corner],tss+idts,th*v[corner]}}
-                          :std::array<double,3>{{tss+idts,tw*u[corner],th*v[corner]}})
-                        :std::array<double,3>{{tw*u[corner],th*v[corner],0}};
-                    quad.push_back({p,p,t});
-                }
-                emitLocalHideQuad(quad,b_tex3d);continue;
-            }
-
 			glBegin(GL_QUADS);
 
 			if (!b_tex3d)  glTexCoord2d(tw0, th0);
@@ -2087,21 +2069,6 @@ void Renderer_gl1::drawUnitFrontSlice(int line)
 
 	drawing_fslice = true;
 	shaderTexBegin(false); // no stream
-    if(!localHiddenBoxes.empty()) {
-        LocalHidePolygon quad;
-        const double *positions[]={c0,cx,c1,cy};
-        const double *units[]={s0,sx,s1,sy};
-        const double u[]={0,tw,tw,0},v[]={0,0,tw,tw};
-        const XYZ texturePoints[]={S0,Sx,S1,Sy};
-        for(int i=0;i<4;++i) {
-            std::array<double,3> p{{positions[i][0],positions[i][1],positions[i][2]}};
-            std::array<double,3> unit{{units[i][0],units[i][1],units[i][2]}};
-            std::array<double,3> t=use_tex2D?std::array<double,3>{{u[i],v[i],0}}
-                :std::array<double,3>{{texturePoints[i].x*tx,texturePoints[i].y*ty,texturePoints[i].z*tz}};
-            quad.push_back({unit,p,t});
-        }
-        emitLocalHideQuad(quad,!use_tex2D);
-    } else {
 	glBegin(GL_QUADS);
 	{
 		if (use_tex2D) 	glTexCoord2d(0,  0);
@@ -2121,7 +2088,6 @@ void Renderer_gl1::drawUnitFrontSlice(int line)
 		glVertex3dv(cy);
 	}
 	glEnd();
-    }
 	shaderTexEnd();
 	drawing_fslice = false;
 

@@ -479,7 +479,6 @@ void V3dR_GLWidget::paintGL()
 	//=========================================================================
 	// normalized space of [-1,+1]^3;
 	if (renderer)  renderer->paint();
-    if(auto r=dynamic_cast<Renderer_gl1*>(renderer))r->drawLocalHidePreview();
 	//=========================================================================
 
     // changed in setBright dialog, 081101
@@ -594,10 +593,6 @@ void V3dR_GLWidget::leaveEvent(QEvent*)
 {
 	//qDebug("V3dR_GLWidget::leaveEvent");
 	mouse_in_view = 0;
-    localHideCursorValid=false;
-    if(localHideHoverTimer)localHideHoverTimer->stop();
-    if(auto r=dynamic_cast<Renderer_gl1*>(renderer))r->localHidePreviewValid=false;
-    if(localHideMode)update();
 }
 void V3dR_GLWidget::focusInEvent(QFocusEvent*)
 {
@@ -683,11 +678,6 @@ void V3dR_GLWidget::stillPaint()
 
 void V3dR_GLWidget::mousePressEvent(QMouseEvent *event)
 {
-    if(localHideMode) {
-        localHideCursorValid=false;
-        if(localHideHoverTimer)localHideHoverTimer->stop();
-        if(auto r=dynamic_cast<Renderer_gl1*>(renderer))r->localHidePreviewValid=false;
-    }
 	//091025: use QMouseEvent::button()== not buttonS()&
     //qDebug("V3dR_GLWidget::mousePressEvent  button = %d", event->button());
 
@@ -734,17 +724,6 @@ void V3dR_GLWidget::mouseReleaseEvent(QMouseEvent *event)
 
 void V3dR_GLWidget::mouseMoveEvent(QMouseEvent *event)
 {
-    if(localHideMode&&event->buttons()==Qt::NoButton) {
-        if(auto r=dynamic_cast<Renderer_gl1*>(renderer))r->localHidePreviewValid=false;
-        localHideCursor=event->pos();localHideCursorValid=true;setFocus(Qt::MouseFocusReason);
-        lastPos=event->pos();
-        if(localHideHoverTimer&&!localHideHoverTimer->isActive())localHideHoverTimer->start(40);
-        event->accept();return;
-    }
-    if(localHideMode) {
-        localHideCursorValid=false;
-        if(auto r=dynamic_cast<Renderer_gl1*>(renderer))r->localHidePreviewValid=false;
-    }
 	//091025: use 'QMouseEvent::buttons()&' instead of 'button()=='
     //qDebug()<<"V3dR_GLWidget::mouseMoveEvent  buttons = "<< event->buttons();
 
@@ -793,11 +772,6 @@ void V3dR_GLWidget::mouseMoveEvent(QMouseEvent *event)
 
 void V3dR_GLWidget::wheelEvent(QWheelEvent *event)
 {
-    if(localHideMode) {
-        localHideCursorValid=false;
-        if(localHideHoverTimer)localHideHoverTimer->stop();
-        if(auto r=dynamic_cast<Renderer_gl1*>(renderer))r->localHidePreviewValid=false;
-    }
     //qDebug()<<"V3dR_GLWidget::wheelEvent ... ...";
 
 	//20170804 RZC: add zoomin_sign in global_setting.b_scrollupZoomin
@@ -853,22 +827,6 @@ void V3dR_GLWidget::wheelEvent(QWheelEvent *event)
 
 void V3dR_GLWidget::handleKeyPressEvent(QKeyEvent * e)  //090428 RZC: make public function to finally overcome the crash problem of hook MainWindow
 {
-    if(localHideMode) {
-        if(e->key()==Qt::Key_Delete&&e->modifiers()==Qt::NoModifier) {
-            if(!e->isAutoRepeat()) {
-                // Delete only the box already previewed, never a newly inferred
-                // depth after a camera change or while a hover is still pending.
-                if(auto r=dynamic_cast<Renderer_gl1*>(renderer))if(localHideCursorValid
-                    &&r->localHidePreviewValid&&r->localHidePreview.frame==r->volTimePoint) {
-                    r->localHiddenBoxes.push_back(r->localHidePreview);r->localHidePreviewValid=false;
-                    emit localHideCountChanged(int(r->localHiddenBoxes.size()));update();
-                }
-            }
-            e->accept();return;
-        }
-        if(e->key()==Qt::Key_Z&&e->modifiers()==Qt::ControlModifier){undoLocalHide();e->accept();return;}
-        if(e->key()==Qt::Key_Escape){setLocalHideMode(false);e->accept();return;}
-    }
 	switch (e->key())
 	{
 		case Qt::Key_1:		_holding_num[1] = true; 	break;

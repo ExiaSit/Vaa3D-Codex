@@ -39,7 +39,6 @@ Peng, H, Ruan, Z., Atasoy, D., and Sternson, S. (2010) “Automatic reconstructi
 
 #include "v3dr_mainwindow.h"
 #include "PanDirectionPad.h"
-#include "renderer_gl1.h"
 #include "../basic_c_fun/FastFileDialog.h"
 
 
@@ -688,30 +687,6 @@ void V3dR_MainWindow::createControlWidgets()
     importLayout->addWidget(importMaskButton);
     importLayout->addStretch();
     viewLayout->addLayout(importLayout);
-    auto hideRow=new QHBoxLayout;
-    auto hideMode=new QCheckBox(QString::fromUtf8("局部隐藏"),viewGroup);hideMode->setObjectName("localHideMode");
-    hideMode->setToolTip(QString::fromUtf8("悬停时沿当前视线最亮信号定位黄色三维框；Delete 隐藏框内图像，Ctrl+Z 撤销，Esc 退出。可先旋转或裁切减少前后重叠。只影响当前 3D 图像显示，不改源文件、SWC 或 Mask。"));
-    auto hideRadius=new QSpinBox(viewGroup);hideRadius->setObjectName("localHideRadius");
-    hideRadius->setRange(1,4096);hideRadius->setValue(8);hideRadius->setSuffix(QString::fromUtf8(" 体素"));
-    hideRadius->setToolTip(QString::fromUtf8("黄色框在 X/Y/Z 每个方向的半径；框的边长约为半径的两倍。"));
-    auto undoHide=new QPushButton(QString::fromUtf8("撤销隐藏"),viewGroup);undoHide->setObjectName("undoLocalHide");
-    auto restoreHide=new QPushButton(QString::fromUtf8("恢复全部"),viewGroup);restoreHide->setObjectName("restoreLocalHidden");
-    undoHide->setToolTip(QString::fromUtf8("恢复最后一次通过局部隐藏框隐藏的图像区域。"));
-    restoreHide->setToolTip(QString::fromUtf8("恢复当前 3D 视窗的全部局部隐藏区域；不改变 Object Manager 的显示开关。"));
-    auto hiddenCount=new QLabel(QString::fromUtf8("已隐藏 0"),viewGroup);hiddenCount->setObjectName("localHideCount");
-    undoHide->setEnabled(false);restoreHide->setEnabled(false);
-    hideRow->addWidget(hideMode);hideRow->addWidget(new QLabel(QString::fromUtf8("半径"),viewGroup));hideRow->addWidget(hideRadius);
-    hideRow->addWidget(undoHide);hideRow->addWidget(restoreHide);hideRow->addWidget(hiddenCount);hideRow->addStretch();
-    connect(hideMode,&QCheckBox::toggled,glWidget,&V3dR_GLWidget::setLocalHideMode);
-    connect(glWidget,&V3dR_GLWidget::localHideModeChanged,hideMode,&QCheckBox::setChecked);
-    connect(hideRadius,static_cast<void(QSpinBox::*)(int)>(&QSpinBox::valueChanged),glWidget,&V3dR_GLWidget::setLocalHideRadius);
-    connect(undoHide,&QPushButton::clicked,glWidget,&V3dR_GLWidget::undoLocalHide);
-    connect(restoreHide,&QPushButton::clicked,glWidget,&V3dR_GLWidget::restoreLocalHidden);
-    auto showHideCount=[=](int count){hiddenCount->setText(QString::fromUtf8("已隐藏 %1").arg(count));undoHide->setEnabled(count>0);restoreHide->setEnabled(count>0);};
-    connect(glWidget,&V3dR_GLWidget::localHideCountChanged,viewGroup,showHideCount);
-    connect(glWidget,&V3dR_GLWidget::signalInitControlValue,viewGroup,[=](){
-        auto r=dynamic_cast<Renderer_gl1*>(glWidget->getRenderer());showHideCount(r?int(r->localHiddenBoxes.size()):0);});
-    viewLayout->addLayout(hideRow);
     viewLayout->addWidget(glWidgetArea);
     viewLayout->addWidget(timeSlider);
     viewLayout->setContentsMargins(0,0,0,0);

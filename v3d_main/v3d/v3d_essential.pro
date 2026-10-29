@@ -317,7 +317,6 @@ SOURCES += ../basic_c_fun/mg_utilities.cpp \
     ../3drenderer/v3dr_glwidget.cpp \
     ../3drenderer/renderer.cpp \
     ../3drenderer/renderer_tex.cpp \
-    ../3drenderer/LocalVolumeHide.cpp \
     ../3drenderer/renderer_obj.cpp \
     ../3drenderer/renderer_labelfield.cpp \
     ../3drenderer/renderer_gl2.cpp \

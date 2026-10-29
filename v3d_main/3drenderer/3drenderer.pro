@@ -51,7 +51,6 @@ HEADERS += GLee_r.h \
 SOURCES += GLee_r.c \
     renderer.cpp \
     renderer_tex.cpp \
-    LocalVolumeHide.cpp \
     renderer_obj.cpp \
     renderer_hit.cpp \
     renderer_labelfield.cpp \

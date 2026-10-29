@@ -163,27 +163,6 @@ XDG_CONFIG_HOME="$(mktemp -d /tmp/vaa3d-axis-config-XXXXXX)" LD_PRELOAD=/usr/lib
 
 成功标记为 `AXIS_LABELS_GUI_PASS`。回归检查真实三维视窗中的 RGB 字母像素、深/浅背景、投影图像避让、旋转、缩放、Shift、正交投影、Axes 开关，以及标签碰撞、视口占满、退化投影方向和 2 倍布局尺度。截图输出 `/tmp/vaa3d-axis-labels-default.png`、`/tmp/vaa3d-axis-labels-light.png`、`/tmp/vaa3d-axis-labels-rotated.png`、`/tmp/vaa3d-axis-labels-ortho.png`、`/tmp/vaa3d-axis-labels-zoom.png`。
 
-## 三维图像局部暂时隐藏
-
-3D 图像视窗顶部、导入按钮下方新增“局部隐藏”、半径（默认 8 体素，1–4096）、“撤销隐藏”“恢复全部”和隐藏框计数。
-
-1. 勾选“局部隐藏”，鼠标移动到灰色浮块。沿当前视线的最亮信号估计深度，显示黄色三维框；切片模式使用已开启切片与视线的交点。可调半径控制 X/Y/Z 方向的框大小，前后信号重叠时可先旋转或用 Volume Cut 裁切，再悬停预览。
-2. 黄色框出现后按 Delete，只隐藏框内原始图像的三维区域。按住不连走；鼠标刚移到新位置、预览未完成或移出图像视窗时不执行隐藏。框选不是自动分割整个连通块，也不是沿视线整列擦除；应确认黄色框大小。
-3. Ctrl+Z（模式内、图像区域获得焦点时）或“撤销隐藏”恢复最后一框；“恢复全部”清除当前视窗所有局部隐藏框。Esc 或取消勾选退出悬停模式，已隐藏区域保持，仍可用按钮恢复。
-
-只改变当前 3D 视窗绘制，不修改图像体素、RGBA 纹理缓冲、磁盘文件、独立的二维与 MIP 投影窗口、SWC 或 Mask 表面。排除框使用三维归一化位置并关联时间点，旋转后仍隐藏同一三维区域；关闭视窗、重建渲染器或重新加载图像时清空。源码数据和分析算法输入仍保留原内容；不新增隐藏区域持久化格式。
-
-实现是在体绘制切片几何中扣除隐藏框并插值纹理坐标，无需改写或重新上传图像纹理；覆盖 2D/3D 纹理、着色器/固定管线及 F-slice。隐藏框很多时，CPU 几何裁切开销会增加；悬停采用 40 ms 合并事件，沿视线最多采样 4097 个现有显示缓冲点。定位受显示缓冲分辨率、当前通道和前后信号重叠影响，不保证自动识别生物学连通体。
-
-验证入口（普通 Debug 构建后）：
-
-```bash
-make -C v3d_main/v3d -f Makefile -f ../../tests/local_volume_hide_gui_test.mk local-volume-hide-gui-test
-XDG_CONFIG_HOME="$(mktemp -d /tmp/vaa3d-local-hide-config-XXXXXX)" LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libstdc++.so.6 LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a -s '-screen 0 1600x1200x24' /tmp/vaa3d-local-volume-hide-gui
-```
-
-成功标记为 `LOCAL_VOLUME_HIDE_GUI_PASS`。测试两个真实视窗中的独立体块，检查黄色框、实际像素隐藏与相邻块保留、原始/RGBA SHA256 不变、2D/3D 纹理及着色器/固定管线四路径、Alpha、Z 切片、F-slice、旋转及同屏不同深度的信号保留、撤销/恢复、关闭模式、Delete 自动重复/预览等待保护、离开视窗/Esc 和渲染器重建；几何回归检查面积守恒、80 个重叠框无碎片膨胀和时间点隔离。截图：`/tmp/vaa3d-local-hide-preview.png`、`/tmp/vaa3d-local-hide-deleted.png`。
-
 ## 最近目录只记录最终选择
 
 文件选择器的目录下拉框只在用户确认打开文件或选择文件夹时更新：文件记其所在目录，文件夹记自身；浏览、转到、返回上级、刷新和取消不写入历史。保留最近 20 个最终目录并去重，文件名下拉框仍保留最近文件。

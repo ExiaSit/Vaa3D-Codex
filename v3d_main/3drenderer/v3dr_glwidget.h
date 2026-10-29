@@ -162,10 +162,6 @@ public:
     virtual void customEvent(QEvent* e); // for QEvent_OpenFiles, by RZC 081002
 
     WheelStepAccumulator wheelSteps;
-    bool localHideMode=false,localHideCursorValid=false,localHidePreviousTracking=false;
-    int localHideRadius=8;
-    QPoint localHideCursor;
-    QTimer *localHideHoverTimer=nullptr;
     iDrawExternalParameter* _idep;
     QWidget *mainwindow;
 	Renderer* renderer;
@@ -188,11 +184,6 @@ public:
 	map<int, void(*)(void*)> pluginLeftMouseFuncs;     // May 29, 2012 by Hang
 
 public slots:
-    void setLocalHideMode(bool enabled);
-    void setLocalHideRadius(int radius);
-    void updateLocalHideHover();
-    void undoLocalHide();
-    void restoreLocalHidden();
    	virtual void stillPaint(); //for deferred full-resolution volume painting, connected to still_timer
 
 #define __view3dcontrol_interface__
@@ -466,8 +457,6 @@ public slots:
 //----------------------------------------------------------------------------------------
 
 signals:
-    void localHideModeChanged(bool enabled);
-    void localHideCountChanged(int count);
     void rendererAboutToBeDeleted();
 // most of format: change***(type)
 // most of format: changeEnable***(bool)
