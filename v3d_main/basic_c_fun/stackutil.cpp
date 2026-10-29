@@ -113,6 +113,7 @@ Peng, H, Ruan, Z., Atasoy, D., and Sternson, S. (2010) “Automatic reconstructi
 #include <math.h>
 
 #include "stackutil.h"
+#include "MultiChannelTiff.h"
 #include "basic_memory.cpp" //change basic_memory.h to basic_memory.cpp, 080302
 
 /*
@@ -2062,6 +2063,9 @@ int loadLsm2Stack(char * filename, unsigned char * & img, V3DLONG * & sz, int & 
 
 int loadTif2Stack(char * filename, unsigned char * & img, V3DLONG * & sz, int & datatype)
 {
+    const int multiResult = readMultiChannelTiff(filename, img, sz, datatype);
+    if (multiResult != -1) return multiResult;
+
 	int b_error=0;
 
     try //120329

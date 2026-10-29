@@ -530,9 +530,21 @@ Stack *Read_Stack(char *file_name)
   tif = Open_Tiff(file_name,"r");
   if (!tif) return 0;
 
-  depth = 1;
-  while (TIFFReadDirectory(tif))
-    depth += 1;
+  depth = 0;
+  do
+    {
+      uint16 samples = 1, photo = 0;
+      TIFFGetFieldDefaulted(tif, TIFFTAG_SAMPLESPERPIXEL, &samples);
+      TIFFGetFieldDefaulted(tif, TIFFTAG_PHOTOMETRIC, &photo);
+      if (photo <= PHOTOMETRIC_MINISBLACK && samples > 1)
+        {
+          fprintf(stderr, "Read_Stack cannot represent multichannel grayscale TIFF; use loadTif2Stack.\n");
+          TIFFClose(tif);
+          return 0;
+        }
+      depth += 1;
+    }
+  while (TIFFReadDirectory(tif));
   TIFFClose(tif);
 
   tif = Open_Tiff(file_name,"r");

@@ -12,6 +12,16 @@
 
 首次补记时间：2026-10-08 21:22:07 +08:00。
 
+## local-039 — 修复四通道 16 位灰度 TIFF 打开时内存越界闪退
+
+- 更新时间：2026-10-29 21:32:54 +0800（Asia/Shanghai）。
+- 原因：Nikon 导出的 P209-T1-R1-S19-4color.tif 为 1024×1024×28、4 通道 uint16，Photometric=minisblack、SamplesPerPixel=4、交错存储。旧 Read_Stack 按单通道分配空间，每行只预留 2048 字节，TIFFReadScanline 实际写入 8192 字节；GDB 在 mg_image_lib.cpp 的读行调用捕获 SIGSEGV。独立 tifffile 已完整解码 28 页，各通道范围均为 0–4095。
+- 新增 MultiChannelTiff.h，通过 loadTif2Stack 单独读取多通道灰度 TIFF，按 C/Z/Y/X 排列所有通道，保持原始位深、像素值和存储行序，不使用 RGBA/alpha 转换。支持 unsigned 8/16 位、float32、条带/tile、连续/分平面、压缩及 BigTIFF；检查页间尺寸/类型、缓冲长度、尺寸溢出及解码错误，全部成功后才替换输出。直接调用旧 Read_Stack 时安全拒绝其无法表示的多通道灰度布局，避免再次越界；其他灰度/RGB 图像继续走原路径。
+- 验证：完整 Debug 构建成功；python3 tests/multichannel_tiff_test.py 加原 TIFF 路径通过 ASan/UBSan 检查，覆盖 24 组位深/通道/存储布局/压缩/大小端组合、Nikon 多 alpha 标签、灰度/RGB 分支、signed 类型/不一致页面/截断文件拒绝与失败保留缓冲。真实图像全部 117440512 个 uint16 样本与独立 TIFF 解码逐像素一致。既有 tests/tiff_orientation_test.py 的灰度 8/16 位和 RGB 读/写/重载回归通过。
+- 界面验证：make -C v3d_main/v3d -f Makefile -f ../../tests/multichannel_tiff_gui_test.mk multichannel-tiff-gui-test；在独立 Xvfb、临时 XDG_CONFIG_HOME、系统 libstdc++ 和软件 OpenGL 下，用真实原图运行测试，通过实际主窗口加载、四通道 uint16 尺寸检查及三维 QEvent_Ready，输出 MULTICHANNEL_TIFF_GUI_PASS，正常退出。界面加载后的全部像素再次与 tifffile 比对通过；已检查三视图截图，四通道均显示。差异审阅及 git diff --check 通过。
+- 已另开新版桌面实例加载原 TIFF，保留既有进程；原文件、标注和设置未改写。本次提交仅含 TIFF 修复及专用测试，不纳入工作区中同时进行的文件组/协议等其他修改；构建和界面验证基于当时工作区。仅本地 Git，不推送。
+- 限制：按 TIFF 页序作为 Z、每页样本作为通道；不新增完整 OME 时间轴/通道名称/颜色/物理尺寸解析。三维测试使用软件 OpenGL，日志有既有 GL_INVALID_ENUM 诊断，未覆盖全部 GPU 驱动；旧进程不能热更新，需在新版实例打开。回归原图仅作为外部只读输入，测试输出保存在临时目录，不入库。
+
 ## local-038 — 网页通过 vaa3d 自定义协议打开本机文件
 
 - 更新时间：2026-10-29 21:15:03 +0800（Asia/Shanghai）。
