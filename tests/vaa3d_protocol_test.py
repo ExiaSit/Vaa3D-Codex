@@ -139,7 +139,7 @@ class ProtocolTest(unittest.TestCase):
         deadline=time.monotonic()+10
         while not capture.exists() and time.monotonic()<deadline:time.sleep(0.05)
         self.assertEqual(json.loads(capture.read_text()),['--open-set','--image',str(image),
-                         '--swc',str(self.file),'--mask',str(mask)])
+                         '--swc',str(self.file),'--mask',str(mask),'--mesh-density','400'])
         # The existing full installer must still register both TIFF types.
         subprocess.run([sys.executable, str(checkout / 'scripts/install-desktop-integration.py')],
                        env=env, check=True)

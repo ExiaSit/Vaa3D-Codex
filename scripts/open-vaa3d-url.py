@@ -72,6 +72,8 @@ def launch_arguments(url):
             raise ValueError('不支持的参数：' + key)
     if counts.get('image') != 1:
         raise ValueError('一组文件需要且只能有一个 image 原图，可重复传入 swc 和 mask。')
+    if counts.get('mask') and not counts.get('mesh_density'):
+        result.extend(['--mesh-density', '400'])
     return result
 
 

@@ -83,14 +83,14 @@ button.addEventListener('click', () => {
 
 ### 一次打开原图、多个神经元和多个 Mask
 
-使用同一个协议地址，改传一个 `image`，以及可重复的 `swc` / `mask` 参数；不能与单文件 `path` 混用。原图支持 TIFF/V3DPBD，神经元支持 SWC/ESWC，Mask 支持 TIFF 标签图（0 为背景，通道 0）。`mesh_density` 可选，范围 1–1000，默认 100。网页示例已提供整组表单：
+使用同一个协议地址，改传一个 `image`，以及可重复的 `swc` / `mask` 参数；不能与单文件 `path` 混用。原图支持 TIFF/V3DPBD，神经元支持 SWC/ESWC，Mask 支持 TIFF 标签图（0 为背景，通道 0）。`mesh_density` 可选，范围 1–1000，通过协议加载 Mask 时默认 400；显式传入该参数时使用指定值。网页示例已提供整组表单：
 
 ```javascript
 const p = new URLSearchParams();
 p.set('image', '/data/43199.tif');
 for (const path of ['/data/43199_a.swc', '/data/43199_b.eswc']) p.append('swc', path);
 for (const path of ['/data/43199_mask_a.tif', '/data/43199_mask_b.tif']) p.append('mask', path);
-p.set('mesh_density', '100');
+p.set('mesh_density', '400'); // 可省略，协议加载 Mask 时默认 400
 window.location.href = 'vaa3d://open?' + p.toString();
 ```
 
@@ -98,7 +98,7 @@ window.location.href = 'vaa3d://open?' + p.toString();
 
 网页按所选 ID 显式提供这一组路径；程序不根据文件名猜测关联，不变换/重采样坐标，SWC/Mask 应与原图处于相同坐标系，Mask 三维尺寸必须相同。所有路径/角色先校验，缺失、重复（包含符号链接别名）或错误类型会在启动前拒绝；同一个文件不能兼作原图和 Mask。解析/加载内容失败、尺寸不符或取消某个 Mask 后停止余下队列并提示，之前加载成功的内容保留，文件组不会假报成功；关闭/重建目标三维视窗时取消队列。此模式只负责当前会话加载，不生成持久化工程文件。
 
-命令行也可调用 `scripts/open-vaa3d.sh --open-set --image /data/43199.tif --swc /data/43199_a.swc --mask /data/43199_mask.tif --mesh-density 100`，角色参数可重复（原图与密度除外）；路径必须是绝对路径，含空格时按 shell 规则加引号。协议注册记录的脚本位置不变，已注册电脑完成构建即可使用新模式；无需关闭已有实例。大量路径需注意浏览器/操作系统对 URL 长度的限制。
+命令行也可调用 `scripts/open-vaa3d.sh --open-set --image /data/43199.tif --swc /data/43199_a.swc --mask /data/43199_mask.tif --mesh-density 100`，角色参数可重复（原图与密度除外）；路径必须是绝对路径，含空格时按 shell 规则加引号。直接命令行和手动导入的默认密度仍为 100；协议处理器会为未指定密度的 Mask 文件组补入 400。协议注册记录的脚本位置不变，已注册电脑完成构建即可使用新模式；无需关闭已有实例。大量路径需注意浏览器/操作系统对 URL 长度的限制。
 
 回归：`python3 tests/vaa3d_protocol_test.py`，测试在临时 XDG 目录中注册协议，以真实 `gio open` 调用模拟程序，验证特殊字符路径、Desktop Exec 引号、参数完整传递、非法链接拒绝及 TIFF 关联保持；不修改日常桌面配置。
 
