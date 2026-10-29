@@ -56,6 +56,35 @@ XDG_CONFIG_HOME="$(mktemp -d /tmp/yflip-config-XXXXXX)" LIBGL_ALWAYS_SOFTWARE=1 
 
 恢复此次安装前的 TIFF 默认程序：运行 `xdg-mime default org.gnome.Evince.desktop image/tiff`；对于新增的 `image/x-tiff` 默认项，从 `~/.config/mimeapps.list` 的 `[Default Applications]` 中只移除 `image/x-tiff=vaa3d-local.desktop`（若尚未被用户修改）。然后删除 `~/.local/share/applications/vaa3d-local.desktop` 并运行 `update-desktop-database ~/.local/share/applications`；保留其余 MIME 设置。若采用自定义 XDG 路径，请使用相应路径。
 
+## 网页通过 vaa3d 协议打开本机文件（Linux）
+
+当前维护版提供 `vaa3d://open?path=<URL 编码后的绝对路径>`。使用 Python 3 标准库校验参数，再调用现有 `open-vaa3d.sh`，以 `-i` 加载文件；每次打开新实例，图像遵循原有二维/自动三维偏好，SWC/ESWC 使用三维对象浏览器。现有实例无需退出，未保存标注不受影响。
+
+仅注册协议，不改变当前 TIFF 文件关联：
+
+```bash
+python3 scripts/install-desktop-integration.py --protocol-only
+xdg-mime query default x-scheme-handler/vaa3d
+# 预期：vaa3d-protocol.desktop
+xdg-open 'vaa3d://open?path=%2Fhome%2Fpzy%2F100310.swc'
+```
+
+安装到当前用户的 `$XDG_DATA_HOME/applications/vaa3d-protocol.desktop`（默认 `~/.local/share/applications`），依赖 Python 3、xdg-utils、desktop-file-utils、GIO 及已构建的本机 Vaa3D；错误提示在有桌面和 Zenity 时显示对话框，同时写入标准错误。不需要 sudo。原来的安装命令不带参数时同时注册 TIFF 和协议；移动仓库后重新运行安装脚本。
+
+网页按钮参考 [examples/open-in-vaa3d.html](examples/open-in-vaa3d.html)，核心代码：
+
+```javascript
+button.addEventListener('click', () => {
+  window.location.href = 'vaa3d://open?path=' + encodeURIComponent(absolutePath);
+});
+```
+
+`absolutePath` 是**运行浏览器的电脑上**可读文件的绝对路径，例如 `/data/disk/example.tif`；共享目录须先在该电脑挂载到对应路径，服务器独有路径不能直接访问。浏览器通常会先询问是否允许打开 Vaa3D，用户允许后启动，无需网页读取文件内容或运行本地服务。本协议不下载 HTTP 文件、不执行插件或脚本，也不接受相对路径、重复/额外参数；仅接受 SWC、ESWC、TIF、TIFF、V3DPBD（扩展名不区分大小写）。文件格式内容仍由 Vaa3D 加载器检查。路径必须整体用 `encodeURIComponent` 编码一次，空格、中文、`+`、`#`、`&`、`%` 均可保留。
+
+回归：`python3 tests/vaa3d_protocol_test.py`，测试在临时 XDG 目录中注册协议，以真实 `gio open` 调用模拟程序，验证特殊字符路径、Desktop Exec 引号、参数完整传递、非法链接拒绝及 TIFF 关联保持；不修改日常桌面配置。
+
+卸载协议：删除上述 `vaa3d-protocol.desktop`，在 `$XDG_CONFIG_HOME/mimeapps.list`（默认 `~/.config/mimeapps.list`）中仅移除值为 `vaa3d-protocol.desktop` 的 `x-scheme-handler/vaa3d` 项，保留其他配置，然后对相应 applications 目录运行 `update-desktop-database`。如安装前已有其他处理程序，请先记录 `xdg-mime query default x-scheme-handler/vaa3d`，卸载时用 `xdg-mime default 原处理程序.desktop x-scheme-handler/vaa3d` 恢复。此功能只配置 Linux 桌面；Windows/macOS 尚无注册脚本。
+
 ## 三维滚轮缩放回归
 
 完成常规构建后，运行 `make -C v3d_main/v3d -f Makefile -f ../../tests/wheel_zoom_gui_test.mk wheel-zoom-gui-test`。随后在独立 Xvfb、临时 `XDG_CONFIG_HOME` 和系统 `LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libstdc++.so.6` 下运行 `/tmp/vaa3d-wheel-zoom-gui`；输出 `WHEEL_ZOOM_GUI_PASS` 表示通过。测试使用合成 32³ 图像，检查微小滚轮增量累积、像素滚动、焦点、修饰键、缩放边界及滑条反馈。TeraFly 的跨分辨率切换不在此回归覆盖范围。

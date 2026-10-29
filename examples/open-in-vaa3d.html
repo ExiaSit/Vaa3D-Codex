@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<title>在 Vaa3D 中查看</title>
+<body>
+  <label>本机文件绝对路径：
+    <input id="path" size="80" value="/home/pzy/100310.swc">
+  </label>
+  <button id="open" type="button">在 Vaa3D 中查看</button>
+  <p>请先在运行浏览器的电脑注册 vaa3d 协议，文件必须能从该电脑访问。</p>
+  <script>
+    document.getElementById('open').addEventListener('click', () => {
+      const path = document.getElementById('path').value;
+      window.location.href = 'vaa3d://open?path=' + encodeURIComponent(path);
+    });
+  </script>
+</body>
+</html>
