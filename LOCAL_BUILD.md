@@ -202,7 +202,7 @@ XDG_CONFIG_HOME="$(mktemp -d /tmp/vaa3d-cut-move-config-XXXXXX)" LD_PRELOAD=/usr
 
 Qt 5 的 3D 视窗沿三条彩色坐标轴外侧显示 X（红）、Y（绿）、Z（蓝），字母带黑白描边，适应深色和浅色背景。使用 Others → Axes 开关统一控制坐标轴与标签。
 
-标签按当前相机、缩放、Shift 和窗口尺寸重新投影，在每条轴末端向外寻找位置；整个标签框与图像八角点投影形成的包围矩形保持间隙，并避免标签互相重叠或超出视口。极端放大、平移、近裁切或窗口空间不足时，无法安全放置的标签隐藏；缩小或调整视角后可恢复。优先保留图像显示区域，不把文字强行夹到图像内部。当前只补齐 Qt 5 的坐标轴标签，Qt 4 继续沿用原绘制路径。
+标签按当前相机、缩放、Shift 和窗口尺寸重新投影，以各轴末端为锚点，沿图像投影中心指向该末端的外向方向定位；用图像八角点投影的实际凸包避让整个文字框。距对应轴末端最多 48 个界面像素，间距随 DPI 缩放；定位连续变化，没有离散横向换位或人工补出的方向。轴投影过短、与其他标签重叠、近裁切、屏幕空间不足或需要移得更远时，隐藏该标签；调整视角或缩小图像后可恢复。文字保持在图像轮廓之外，图像外接矩形内的空白区域也可正常放置。Qt 4 继续沿用原绘制路径。
 
 验证入口（普通 Debug 构建后）：
 
@@ -211,7 +211,7 @@ make -C v3d_main/v3d -f Makefile -f ../../tests/axis_labels_gui_test.mk axis-lab
 XDG_CONFIG_HOME="$(mktemp -d /tmp/vaa3d-axis-config-XXXXXX)" LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libstdc++.so.6 LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a -s '-screen 0 1600x1200x24' /tmp/vaa3d-axis-labels-gui
 ```
 
-成功标记为 `AXIS_LABELS_GUI_PASS`。回归检查真实三维视窗中的 RGB 字母像素、深/浅背景、投影图像避让、旋转、缩放、Shift、正交投影、Axes 开关，以及标签碰撞、视口占满、退化投影方向和 2 倍布局尺度。截图输出 `/tmp/vaa3d-axis-labels-default.png`、`/tmp/vaa3d-axis-labels-light.png`、`/tmp/vaa3d-axis-labels-rotated.png`、`/tmp/vaa3d-axis-labels-ortho.png`、`/tmp/vaa3d-axis-labels-zoom.png`。
+成功标记为 `AXIS_LABELS_GUI_PASS`。回归检查真实三维视窗中的 RGB 字母像素、深/浅背景、凸包避让、末端距离上限、201 步细微运动连续性、24 组旋转与实际鼠标拖拽、XYZ 物理间距/裁切组合、缩放、Shift、正交投影、Axes 开关，以及标签碰撞、视口占满、退化投影方向和 2 倍布局尺度。截图输出 `/tmp/vaa3d-axis-labels-default.png`、`/tmp/vaa3d-axis-labels-fit.png`、`/tmp/vaa3d-axis-labels-light.png`、`/tmp/vaa3d-axis-labels-rotated.png`、`/tmp/vaa3d-axis-labels-ortho.png`、`/tmp/vaa3d-axis-labels-zoom.png`、`/tmp/vaa3d-axis-labels-spacing-crop.png`。
 
 ## 最近目录只记录最终选择
 

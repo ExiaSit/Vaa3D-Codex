@@ -461,17 +461,19 @@ static void drawAxisLabelsOutside(QWidget *widget,const BoundingBox &bb,const XY
             ||!std::isfinite(x)||!std::isfinite(y)||!std::isfinite(z)||z<0||z>1)return false;
         point=QPointF(x,y);return true;
     };
-    QPointF corners[8];
+    QPolygonF silhouette;
     for(int i=0;i<8;++i)
-        if(!project(XYZ(i&1?bb.x1:bb.x0,i&2?bb.y1:bb.y0,i&4?bb.z1:bb.z0),corners[i]))return;
-    double left=corners[0].x(),right=left,bottom=corners[0].y(),top=bottom;
-    for(const auto &p:corners){left=qMin(left,p.x());right=qMax(right,p.x());bottom=qMin(bottom,p.y());top=qMax(top,p.y());}
+    {
+        QPointF point;
+        if(!project(XYZ(i&1?bb.x1:bb.x0,i&2?bb.y1:bb.y0,i&4?bb.z1:bb.z0),point))return;
+        silhouette<<point;
+    }
     QPointF start;std::array<QPointF,3> tips;
     if(!project(origin,start)||!project(XYZ(end.x,origin.y,origin.z),tips[0])
         ||!project(XYZ(origin.x,end.y,origin.z),tips[1])||!project(XYZ(origin.x,origin.y,end.z),tips[2]))return;
     const double scale=qMax(1.0,viewport[2]/double(qMax(1,widget->width())));
     const auto boxes=axisLabelLayout(QRectF(viewport[0],viewport[1],viewport[2],viewport[3]),
-        QRectF(QPointF(left,bottom),QPointF(right,top)),start,tips,scale);
+        silhouette,start,tips,scale);
 
     // Small vector letters avoid Qt 5's removed renderText and do not disturb
     // the volume shader, brightness pass, picking or the following GL drawing.
