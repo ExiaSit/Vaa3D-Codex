@@ -44,6 +44,7 @@ Peng, H, Ruan, Z., Atasoy, D., and Sternson, S. (2010) Automatic reconstruction 
 #include <sstream>
 #include <string>
 #include <cmath>
+#include "AxisLabelLayout.h"
 
 Renderer::SelectMode Renderer::defaultSelectMode = Renderer::smObject;
 
@@ -446,6 +447,64 @@ inline void draw_tri(const XYZ P1, const XYZ P2, const XYZ P3, const XYZ offst)
 	glEnd();
 }
 
+#if defined(USE_Qt5)
+static void drawAxisLabelsOutside(QWidget *widget,const BoundingBox &bb,const XYZ &origin,const XYZ &end)
+{
+    if(!widget)return;
+    GLdouble model[16],projection[16];GLint viewport[4];
+    glGetDoublev(GL_MODELVIEW_MATRIX,model);glGetDoublev(GL_PROJECTION_MATRIX,projection);
+    glGetIntegerv(GL_VIEWPORT,viewport);
+    if(viewport[2]<=0||viewport[3]<=0)return;
+    auto project=[&](const XYZ &p,QPointF &point)->bool {
+        GLdouble x,y,z;
+        if(!gluProject(p.x,p.y,p.z,model,projection,viewport,&x,&y,&z)
+            ||!std::isfinite(x)||!std::isfinite(y)||!std::isfinite(z)||z<0||z>1)return false;
+        point=QPointF(x,y);return true;
+    };
+    QPointF corners[8];
+    for(int i=0;i<8;++i)
+        if(!project(XYZ(i&1?bb.x1:bb.x0,i&2?bb.y1:bb.y0,i&4?bb.z1:bb.z0),corners[i]))return;
+    double left=corners[0].x(),right=left,bottom=corners[0].y(),top=bottom;
+    for(const auto &p:corners){left=qMin(left,p.x());right=qMax(right,p.x());bottom=qMin(bottom,p.y());top=qMax(top,p.y());}
+    QPointF start;std::array<QPointF,3> tips;
+    if(!project(origin,start)||!project(XYZ(end.x,origin.y,origin.z),tips[0])
+        ||!project(XYZ(origin.x,end.y,origin.z),tips[1])||!project(XYZ(origin.x,origin.y,end.z),tips[2]))return;
+    const double scale=qMax(1.0,viewport[2]/double(qMax(1,widget->width())));
+    const auto boxes=axisLabelLayout(QRectF(viewport[0],viewport[1],viewport[2],viewport[3]),
+        QRectF(QPointF(left,bottom),QPointF(right,top)),start,tips,scale);
+
+    // Small vector letters avoid Qt 5's removed renderText and do not disturb
+    // the volume shader, brightness pass, picking or the following GL drawing.
+    glPushAttrib(GL_ALL_ATTRIB_BITS);
+    glDisable(GL_DEPTH_TEST);glDepthMask(GL_FALSE);glDisable(GL_LIGHTING);
+    glDisable(GL_TEXTURE_1D);glDisable(GL_TEXTURE_2D);glDisable(GL_TEXTURE_3D);
+    glDisable(GL_BLEND);glDisable(GL_ALPHA_TEST);glDisable(GL_FOG);glDisable(GL_LINE_STIPPLE);
+    glDisable(GL_SCISSOR_TEST);glDisable(GL_STENCIL_TEST);glDisable(GL_COLOR_LOGIC_OP);
+    for(int i=0;i<6;++i)glDisable(GL_CLIP_PLANE0+i);
+    glMatrixMode(GL_PROJECTION);glPushMatrix();glLoadIdentity();
+    glOrtho(viewport[0],viewport[0]+viewport[2],viewport[1],viewport[1]+viewport[3],-1,1);
+    glMatrixMode(GL_MODELVIEW);glPushMatrix();glLoadIdentity();
+    for(int axis=0;axis<3;++axis)
+    {
+        if(boxes[axis].isEmpty())continue;
+        const QRectF ink=boxes[axis].adjusted(3*scale,3*scale,-3*scale,-3*scale);
+        auto vertex=[&](double x,double y){glVertex2d(ink.left()+x*ink.width(),ink.top()+y*ink.height());};
+        for(int outline=2;outline>=0;--outline)
+        {
+            if(outline==2)glColor3f(1,1,1);
+            else if(outline==1)glColor3f(0,0,0);
+            else glColor3f(axis==0?1:0,axis==1?1:0,axis==2?1:0);
+            glLineWidth((2+outline*2)*scale);glBegin(GL_LINES);
+            if(axis==0){vertex(0,0);vertex(1,1);vertex(0,1);vertex(1,0);}
+            else if(axis==1){vertex(0,1);vertex(.5,.5);vertex(1,1);vertex(.5,.5);vertex(.5,.5);vertex(.5,0);}
+            else {vertex(0,1);vertex(1,1);vertex(1,1);vertex(0,0);vertex(0,0);vertex(1,0);}
+            glEnd();
+        }
+    }
+    glPopMatrix();glMatrixMode(GL_PROJECTION);glPopMatrix();glPopAttrib();
+}
+#endif
+
 void Renderer::drawBoundingBoxAndAxes(BoundingBox BB, float BlineWidth, float AlineWidth)
 {
 	glPushAttrib(GL_LINE_BIT | GL_POLYGON_BIT);
@@ -541,9 +600,13 @@ void Renderer::drawBoundingBoxAndAxes(BoundingBox BB, float BlineWidth, float Al
 		}
 		glEnd();
 
+#if defined(USE_Qt5)
+        if(!b_selecting)drawAxisLabelsOutside(static_cast<QWidget*>(widget),BB,A0,A1);
+#else
         glColor3f(1, 0, 0);		drawString(A1.x+td, A0.y, A0.z, "X", 1, 0);
         glColor3f(0, 1, 0);		drawString(A0.x, A1.y+td, A0.z, "Y", 1, 0);
         glColor3f(0, 0, 1);		drawString(A0.x, A0.y, A1.z+td, "Z", 1, 0);
+#endif
 	}
 
 	if (bShowBoundingBox && BlineWidth>0)
