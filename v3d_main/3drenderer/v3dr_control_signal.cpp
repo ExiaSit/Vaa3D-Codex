@@ -509,6 +509,67 @@ void V3dR_MainWindow::createControlWidgets()
 	}break;
 	}
 
+
+    // Move both ends of a cut interval together, preserving its width. Use
+    // the existing slider connections so renderer state and cut locks agree.
+    auto addCutMovePad = [this, &cutPlaneGroup, &cutPlaneRgnLayout](bool surface) {
+        const int group = surface ? 3 : 1;
+        QWidget *pad = new QWidget(cutPlaneGroup[group]);
+        pad->setObjectName(surface ? "surfaceCutMovePad" : "volumeCutMovePad");
+        auto layout = new QGridLayout(pad);
+        layout->setContentsMargins(0, 3, 0, 0);
+        layout->setSpacing(2);
+        auto step = new QSpinBox(pad);
+        step->setObjectName("cutMoveStep");
+        step->setRange(1, surface ? 100 : 1000000000);
+        step->setValue(5);
+        const QString tip = QString::fromUtf8(
+            "保持裁切框大小，每次点击移动一步，到边界停止。方向按数据 X/Y/Z 轴，不随视角旋转。"
+            "请先缩小裁切范围，完整范围无法平移。");
+        pad->setToolTip(tip);
+        step->setToolTip(surface
+            ? QString::fromUtf8("每步移动该轴完整表面范围的百分比；只移动 Surface Cut。")
+            : QString::fromUtf8("每步移动的图像体素数；只移动 Volume Cut 的 X/Y/Z 范围，Front 保持原值。"));
+        const char *directions[] = {"左 X-", "上 Y-", "前 Z-", "右 X+", "下 Y+", "后 Z+"};
+        const char *axes[] = {"X", "Y", "Z"};
+        for (int sign = -1; sign <= 1; sign += 2)
+            for (int axis = 0; axis < 3; ++axis)
+            {
+                const int row = sign < 0 ? 0 : 1;
+                auto button = new QPushButton(QString::fromUtf8(directions[row*3+axis]), pad);
+                button->setObjectName(QString("cutMove%1%2").arg(axes[axis]).arg(sign < 0 ? "Minus" : "Plus"));
+                button->setAutoDefault(false);
+                button->setAutoRepeat(false);
+                layout->addWidget(button, row, axis);
+                connect(button, &QPushButton::clicked, pad, [this, surface, step, axis, sign]() {
+                    if (!glWidget || !glWidget->getRenderer()) return;
+                    QAbstractSlider *low[] = {surface ? xSminSlider : xcminSlider,
+                        surface ? ySminSlider : ycminSlider, surface ? zSminSlider : zcminSlider};
+                    QAbstractSlider *high[] = {surface ? xSmaxSlider : xcmaxSlider,
+                        surface ? ySmaxSlider : ycmaxSlider, surface ? zSmaxSlider : zcmaxSlider};
+                    auto a = low[axis]; auto b = high[axis];
+                    if (!a || !b) return;
+                    const int lo = a->value(), hi = b->value();
+                    int distance = surface
+                        ? qMax(1, qRound((b->maximum()-a->minimum()) * (step->value()/100.0)))
+                        : step->value();
+                    distance = qMin(distance, sign < 0 ? lo-a->minimum() : b->maximum()-hi);
+                    if (distance <= 0) return;
+                    // Move the leading edge first to avoid collapsing a narrow
+                    // interval when the step exceeds its width (also with locks).
+                    if (sign > 0) {b->setValue(hi+distance); a->setValue(lo+distance);}
+                    else {a->setValue(lo-distance); b->setValue(hi-distance);}
+                    // Z-Lock reads the sliders; both endpoints are now current.
+                    if (!surface) glWidget->setXYZSurfure(glWidget->getRenderer()->b_surfZLock);
+                });
+            }
+        layout->addWidget(new QLabel(QString::fromUtf8(surface ? "平移步长 (%)" : "平移步长 (体素)"), pad), 2, 0, 1, 2);
+        layout->addWidget(step, 2, 2);
+        cutPlaneRgnLayout[group]->addWidget(pad, surface ? 7 : 8, 0, 1, 21);
+    };
+    addCutMovePad(false);
+    addCutMovePad(true);
+
 	//========================================================================
 	// cut-planes tab box
 

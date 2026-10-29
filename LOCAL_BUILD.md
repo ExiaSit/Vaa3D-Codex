@@ -131,6 +131,23 @@ TIFF 后台导入在成功发布表面时写入来源；取消或失败不改动
 
 沿用上面的 `mask-async-gui-test` 验证入口。回归增加中文/空格目录下的同名 Mask、相对路径转绝对路径、多标签/多窗口来源、追加/替换、取消/失败保留、撤销与刷新、只读单元格、完整路径工具提示及 Y flip 列位置检查；界面截图输出 `/tmp/vaa3d-mask-source-paths.png`。
 
+## Volume Cut / Surface Cut 裁切框平移
+
+两个裁切页的滑条下方均增加六方向按钮与各自独立的“平移步长”。先调好裁切框大小，再点击左/右（X-/X+）、上/下（Y-/Y+）、前/后（Z-/Z+）平移整个范围。方向固定对应数据坐标轴，不跟随相机旋转。每次点击只走一步，长按不连续移动；接近边界时只走剩余距离，到边界停止，始终保留 min/max 间距。完整范围占满该轴时不能平移，需先缩小；单层范围也可平移。
+
+- Volume Cut：步长为图像体素数，默认 5；只移动 X/Y/Z 裁切区间，Front 保持原值。现有三个区间锁定按钮保持原状态；已启用的 Z-Lock with Volume 继续按移动后的完整范围联动。
+- Surface Cut：步长为该轴完整表面范围的百分比，默认 5%，范围 1–100%。底层沿用现有 0–200 裁切滑条（1% 对应 2 个刻度）。不重新生成网格，不移动对象坐标。
+- 两个裁切页的步长及每个 3D 视窗独立；不会改变相机的旋转、缩放或 Shift。X-section 模式保留原切片控件，不增加这组 Volume Cut 按钮。
+
+验证入口（仓库根目录，完成普通 Debug 构建后）：
+
+```bash
+make -C v3d_main/v3d -f Makefile -f ../../tests/cut_move_gui_test.mk cut-move-gui-test
+XDG_CONFIG_HOME="$(mktemp -d /tmp/vaa3d-cut-move-config-XXXXXX)" LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libstdc++.so.6 LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a -s '-screen 0 1600x1200x24' /tmp/vaa3d-cut-move-gui
+```
+
+成功标记为 `CUT_MOVE_GUI_PASS`。真实双 3D 窗口验证两个裁切页的六方向、步长与单位、宽度保持、两端边界、步长大于框宽、完整范围、单层范围、Volume 三轴锁定、长按不连续移动、滑条/渲染器同步、Volume 渲染像素改变、Z-Lock 读取最终范围及另一窗口/相机/Front 保持。界面截图为 `/tmp/vaa3d-volume-cut-move.png` 和 `/tmp/vaa3d-surface-cut-move.png`。
+
 ## 最近目录只记录最终选择
 
 文件选择器的目录下拉框只在用户确认打开文件或选择文件夹时更新：文件记其所在目录，文件夹记自身；浏览、转到、返回上级、刷新和取消不写入历史。保留最近 20 个最终目录并去重，文件名下拉框仍保留最近文件。
