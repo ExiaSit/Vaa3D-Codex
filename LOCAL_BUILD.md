@@ -241,3 +241,27 @@ XDG_CONFIG_HOME="$(mktemp -d /tmp/vaa3d-channel-colors-XXXXXX)" LD_PRELOAD=/usr/
 ```
 
 可附加真实四通道 uint16 TIFF 路径，使用同一界面验证其通道。测试检查真实选色对话框、各通道 framebuffer 颜色/显隐、取消、对比度、二维/三维纹理、压缩开关、PBO streaming（合成数据）、MIP/Alpha/切面、颜色文件保存/载入与旧文件/无效索引、图像内存哈希不变；合成模式还检查单通道默认白色、Undo、两视窗隔离及渲染器销毁时面板清理。成功标记 `VOLUME_CHANNEL_COLORS_GUI_PASS`，截图位于 `/tmp/vaa3d-channel-controls*.png` 和 `/tmp/vaa3d-channel-volume*.png`，不覆盖源图像。
+
+
+## 3D 浏览器 XYZ 分辨率
+
+在右侧 `Controls → Volume → XYZ 分辨率 / Voxel spacing (µm)` 查看和编辑每个体素沿 X、Y、Z 的物理间距。输入后按 Enter、离开输入框或点击“应用 / Apply”，图像按 XYZ 比例即时拉伸或压缩；“恢复文件值”恢复文件/图像的初始值。下方显示来源和 `体素数 × 间距` 得到的覆盖尺寸（不同于首末切片中心的距离）。右侧控件可滚动，较矮窗口也能访问底部旋转控件；Others 的“编辑 XYZ 分辨率”会跳到这些输入框。
+
+TIFF 加载时读取匹配当前尺寸、单组 Pixels、SizeT=1 且完整有效的 OME PhysicalSizeX/Y/Z，换算为 µm；OME 未写单位时按规范默认 µm。此真实四通道文件自动显示 X=0.564542、Y=0.564542、Z=1.444444 µm，覆盖尺寸约 578.091 × 578.091 × 40.44443 µm。缺少或无法识别的信息使用图像已有分辨率属性；属性也是默认值时明确显示“默认 1 µm，可修改”。尚未解析普通 TIFF 的分辨率标签、ImageJ spacing、多系列和时间序列的空间标定。
+
+设置仅作用于当前 3D 视窗，不修改原始像素、TIFF 文件或图像的全局分辨率属性；重建渲染器保留当前设置，关闭后重新打开视窗则重新使用文件值。三轴同时乘同一倍数会改变物理尺寸和正交视图比例尺，自动适配后的外观比例不变。Marker 跟随相同比例，SWC/表面沿用“Stretch”开关；关闭 Stretch 时仍保留用户选择的不随图像拉伸行为。这里只调整显示，不重采样或改变标注坐标。此验证针对普通图像 3D 视窗，未验证 TeraFly 多分辨率切换工作流。
+
+完整构建后运行：
+
+```bash
+mkdir -p /tmp/vaa3d-voxel-spacing-unit
+cd /tmp/vaa3d-voxel-spacing-unit
+/home/pzy/anaconda3/bin/qmake /home/pzy/pzy/Vaa3D/tests/tiff_voxel_spacing_test.pro CONFIG+=debug CONFIG-=release
+make -j4
+LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libstdc++.so.6 ./tiff_voxel_spacing_test
+cd /home/pzy/pzy/Vaa3D
+make -C v3d_main/v3d -f Makefile -f ../../tests/voxel_spacing_gui_test.mk voxel-spacing-gui-test
+XDG_CONFIG_HOME="$(mktemp -d /tmp/vaa3d-spacing-config-XXXXXX)" LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libstdc++.so.6 LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a -s '-screen 0 1800x1400x24' /tmp/vaa3d-voxel-spacing-gui
+```
+
+两项测试均可附加上述真实 TIFF 路径。单元测试验证单位换算、缺失/非法/不匹配/歧义元数据拒绝；GUI 测试验证自动读值、修改后的 framebuffer 比例、分数/大比例、非法值拒绝、覆盖尺寸、裁剪原点下 Marker/Surface 变换一致、窗口独立性、渲染器重建、恢复、Enter 应用及图像内存 SHA256 不变。成功标记为 `TIFF_VOXEL_SPACING_PASS` 和 `VOXEL_SPACING_GUI_PASS`。

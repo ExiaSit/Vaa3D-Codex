@@ -38,6 +38,7 @@ Peng, H, Ruan, Z., Atasoy, D., and Sternson, S. (2010) “Automatic reconstructi
 
 #include "stackutil.h"
 #include "basic_4dimage.h"
+#include "TiffVoxelSpacing.h"
 
 //extern "C" {
 //#include "../common_lib/src_packages/mylib_tiff/image.h"
@@ -231,6 +232,11 @@ void Image4DSimple::loadImage(const char* filename, bool b_useMyLib)
 	sz1 = tmp_sz[1];
 	sz2 = tmp_sz[2];
 	sz3 = tmp_sz[3]; //no longer merge the 3rd and 4th dimensions
+    double spacing[3];
+    if (readTiffVoxelSpacing(QString::fromLocal8Bit(filename),sz0,sz1,sz2,sz3,spacing)) {
+        rez_x=spacing[0]; rez_y=spacing[1]; rez_z=spacing[2];
+    }
+
 
 	/* clean all workspace variables */
 

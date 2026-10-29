@@ -279,6 +279,10 @@ public slots:
 	virtual void setCSTransparent(int);
     virtual void setContrast(int);
 	virtual void setThickness(double);
+    bool setVoxelSpacing(double x, double y, double z);
+    void resetVoxelSpacing();
+    double voxelSpacing(int axis) const {return _voxelSpacing[axis];}
+    QString voxelSpacingSource() const {return _voxelSpacingSource;}
 	virtual void setCurChannel(int);
 
 	virtual void setChannelR(bool b);
@@ -457,6 +461,7 @@ public slots:
 //----------------------------------------------------------------------------------------
 
 signals:
+    void voxelSpacingChanged();
     void viewerReady();
     void maskImportFinished(const QString &path, bool success, const QString &error);
     void rendererAboutToBeDeleted();
@@ -560,6 +565,9 @@ public:
 	int _xCS, _yCS, _zCS;
 	int _xClip0, _xClip1, _yClip0, _yClip1, _zClip0, _zClip1;
 	int _CStransparency, _markerSize, _curChannel;
+    double _voxelSpacing[3] = {1,1,1};
+    bool _voxelSpacingInitialized = false;
+    QString _voxelSpacingSource;
 	float _thickness;
 	int _Bright, _Contrast, sUpdate_bright, sUpdate_track;
     bool _showAxes, _showBoundingBox, _absRot, _orthoView, _clipBoxEnable;

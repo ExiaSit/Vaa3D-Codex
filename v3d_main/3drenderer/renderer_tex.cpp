@@ -582,11 +582,9 @@ void Renderer_gl1::paint()
 				}
 				else
 				{
-					QSettings callVoxSettings("SEU-Allen", "scaleBar_nonTerafly");
-					voxDims[0] = callVoxSettings.value("x").toDouble();
-					voxDims[1] = callVoxSettings.value("y").toDouble();
-					voxDims[2] = callVoxSettings.value("z").toDouble();
-					drawScaleBar_Yun(voxDims, voxNums, VOIdims, resIndex, this->zThick);
+					for (int axis=0;axis<3;++axis) voxDims[axis]=voxelSpacing[axis];
+                    voxNums[0]=size1; voxNums[1]=size2; voxNums[2]=size3;
+                    drawScaleBar_Yun(voxDims, voxNums, VOIdims, resIndex, 1);
 				}
 				
 #else
@@ -1704,7 +1702,7 @@ void Renderer_gl1::drawStackZ(float direction, int section, bool t3d, bool strea
 
 	SET_Priority( 1 );
 	glPushName(vsZslice);
-	_drawStack( ts,th,tw,  s0,s1, h0,h1, w0,w1,  ds, slice0,slice1, int(thicknessZ),
+	_drawStack( ts,th,tw,  s0,s1, h0,h1, w0,w1,  ds, slice0,slice1, int(qBound(1.0f,thicknessZ,10.0f)),
 			tex3D, Ztex_list, (1),
 			direction, section, t3d, stream);
 	glPopName();
@@ -1727,7 +1725,7 @@ void Renderer_gl1::drawStackY(float direction, int section, bool t3d, bool strea
 
 	SET_Priority( 2 );
 	glPushName(vsYslice);
-	_drawStack( ts,th,tw,  s0,s1, h0,h1, w0,w1,  ds, slice0,slice1, int(thicknessY),
+	_drawStack( ts,th,tw,  s0,s1, h0,h1, w0,w1,  ds, slice0,slice1, int(qBound(1.0f,thicknessY,10.0f)),
 			tex3D, Ytex_list, (2),
 			direction, section, t3d, stream);
 	glPopName();
@@ -1750,7 +1748,7 @@ void Renderer_gl1::drawStackX(float direction, int section, bool t3d, bool strea
 
 	SET_Priority( 3 );
 	glPushName(vsXslice);
-	_drawStack( ts,th,tw,  s0,s1, h0,h1, w0,w1,  ds, slice0,slice1, int(thicknessX),
+	_drawStack( ts,th,tw,  s0,s1, h0,h1, w0,w1,  ds, slice0,slice1, int(qBound(1.0f,thicknessX,10.0f)),
 			tex3D, Xtex_list, (3),
 			direction, section, t3d, stream);
 	glPopName();

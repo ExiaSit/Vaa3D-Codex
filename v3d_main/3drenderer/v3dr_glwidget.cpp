@@ -47,6 +47,7 @@ Peng, H, Ruan, Z., Atasoy, D., and Sternson, S. (2010) Automatic reconstruction 
 #include "v3dr_glwidget.h"
 #include "v3dr_surfaceDialog.h"
 #include "v3dr_colormapDialog.h"
+#include "../basic_c_fun/TiffVoxelSpacing.h"
 #include "v3dr_mainwindow.h"
 #include "../terafly/src/control/CPlugin.h"
 #include "../terafly/src/presentation/PMain.h"
@@ -331,6 +332,13 @@ void V3dR_GLWidget::preparingRenderer() // renderer->setupData & init, 100719 ex
         PROGRESS_PERCENT(100);
     }
 	//=============================================================================
+
+    if (!_voxelSpacingInitialized) resetVoxelSpacing();
+    else {
+        const QString source=_voxelSpacingSource;
+        setVoxelSpacing(_voxelSpacing[0],_voxelSpacing[1],_voxelSpacing[2]);
+        _voxelSpacingSource=source;
+    }
 
 	// when initialize done, update status of control widgets
 	SEND_EVENT(this, QEvent::Type(QEvent_InitControlValue)); // use event instead of signal
@@ -1829,16 +1837,46 @@ void V3dR_GLWidget::setContrast(int t)
     }
 }
 
-void V3dR_GLWidget::setThickness(double t) //added by PHC, 090215
+bool V3dR_GLWidget::setVoxelSpacing(double x,double y,double z)
 {
-	if (_thickness != t) {
-		_thickness = CLAMP(1, ZTHICK_RANGE, t);
-		if (renderer) renderer->setThickness(_thickness);
-		POST_updateGL();
-	}
+    const double values[]={x,y,z};
+    for (double value:values)
+        if (!std::isfinite(value) || value<.000001 || value>1000000) return false;
+    auto r=dynamic_cast<Renderer_gl1*>(renderer);
+    if (!r || !r->has_image()) return false;
+    for (int i=0;i<3;++i) _voxelSpacing[i]=renderer->voxelSpacing[i]=values[i];
+    _voxelSpacingInitialized=true;
+    _voxelSpacingSource=tr("手动设置 · 当前视窗");
+    _thickness=z/x;
+    r->zThick=_thickness;
+    r->thicknessX=1; r->thicknessY=y/x; r->thicknessZ=z/x;
+    r->updateThicknessBox();
+    emit voxelSpacingChanged();
+    POST_updateGL();
+    return true;
+}
 
-	Renderer_gl1* rendererGL1Ptr = static_cast<Renderer_gl1*>(this->getRenderer());
-	rendererGL1Ptr->zThick = t;
+void V3dR_GLWidget::resetVoxelSpacing()
+{
+    auto img=v3dr_getImage4d(_idep);
+    if (!img || !renderer || !renderer->has_image()) return;
+    double values[]={img->getRezX(),img->getRezY(),img->getRezZ()};
+    for (double &value:values) if (!std::isfinite(value) || value<.000001 || value>1000000) value=1;
+    double fromFile[3];
+    bool ome=readTiffVoxelSpacing(QString::fromLocal8Bit(img->getFileName()),img->getXDim(),
+                                 img->getYDim(),img->getZDim(),img->getCDim(),fromFile);
+    if (ome) for (int i=0;i<3;++i) values[i]=fromFile[i];
+    if (!setVoxelSpacing(values[0],values[1],values[2])) return;
+    _voxelSpacingSource=ome?tr("来自 TIFF / OME 元数据"):
+        ((values[0]==1 && values[1]==1 && values[2]==1)?tr("未提供分辨率：默认 1 µm，可修改"):tr("来自图像分辨率属性"));
+    emit voxelSpacingChanged();
+}
+
+void V3dR_GLWidget::setThickness(double t)
+{
+    // Keep plugin/legacy Z-thick calls consistent with the physical spacing controls.
+    if (renderer && renderer->has_image()) setVoxelSpacing(_voxelSpacing[0],_voxelSpacing[1],t*_voxelSpacing[0]);
+    else if (std::isfinite(t) && t>0) { _thickness=t; if(renderer)renderer->setThickness(t); POST_updateGL(); }
 }
 
 void V3dR_GLWidget::setCurChannel(int t) //100802
@@ -3266,28 +3304,10 @@ void V3dR_GLWidget::getZlockStatus(bool status)
 
 void V3dR_GLWidget::setVoxSize()
 {
-	terafly::CImport* importCheckPtr = terafly::CImport::instance();
-	if (importCheckPtr->getVMapRawData() != 0)
-	{
-		v3d_msg(tr("There is a terafly UI inhereted from this Vaa3D controls.\n Please adjust the voxel size from terafly control panel instead."));
-		return;
-	}
-
-	QSettings voxSettings("SEU-Allen", "scaleBar_nonTerafly");
-
-	this->setVoxSizeDlg = new QDialog;
-	this->setVoxDlgPtr = new Ui::setVoxSizeDialog;
-	this->setVoxDlgPtr->setupUi(this->setVoxSizeDlg);
-	this->setVoxDlgPtr->doubleSpinBox->setValue(voxSettings.value("x").toDouble());
-	this->setVoxDlgPtr->doubleSpinBox_2->setValue(voxSettings.value("y").toDouble());
-	this->setVoxDlgPtr->doubleSpinBox_3->setValue(voxSettings.value("z").toDouble());
-	this->setVoxSizeDlg->exec();
-		
-	voxSettings.setValue("x", this->setVoxDlgPtr->doubleSpinBox->value());
-	voxSettings.setValue("y", this->setVoxDlgPtr->doubleSpinBox_2->value());
-	voxSettings.setValue("z", this->setVoxDlgPtr->doubleSpinBox_3->value());
-
-	renderer->paint();
+    if (auto window=qobject_cast<V3dR_MainWindow*>(mainwindow)) {
+        window->show();
+        window->showVoxelSpacingControls();
+    }
 }
 
 void V3dR_GLWidget::callUpBrainAtlas()

@@ -292,6 +292,7 @@ public:
 //protected:
     int volTimePoint, volTimeOffset;
 	BoundingBox boundingBox, surfBoundingBox;
+    double voxelSpacing[3] = {1,1,1}; // micrometres per voxel for this view
 	double thickness; //changed from int to double, PHC, 090215
 	V3DLONG xCut0,xCut1, yCut0,yCut1, zCut0,zCut1;            // for volume
 	float xClip0,xClip1, yClip0,yClip1, zClip0,zClip1;    // for surface

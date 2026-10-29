@@ -899,15 +899,15 @@ void Renderer_gl1::updateThicknessBox()
 void Renderer_gl1::setMarkerSpace()
 {
 	Renderer::setObjectSpace(); //// object put in original image space, 090715 off
-	glTranslated(-start1,-start2,-start3); //090715
 	glScaled(thicknessX, thicknessY, thicknessZ);
+	glTranslated(-start1,-start2,-start3); // crop origin is in voxel coordinates
 }
 void Renderer_gl1::MarkerSpaceToNormalizeSpace(XYZ & p)
 {
 
-	p.x = p.x*thicknessX -start1;
-	p.y = p.y*thicknessY -start2;
-	p.z = p.z*thicknessZ -start3;
+	p.x = (p.x-start1)*thicknessX;
+	p.y = (p.y-start2)*thicknessY;
+	p.z = (p.z-start3)*thicknessZ;
 
 	///Renderer::setObjectSpace()-->setBoundingBoxSpace( boundingBox );
 	///glScaled(s[0], s[1], s[2]);
@@ -942,12 +942,12 @@ void Renderer_gl1::drawMarker()
 void Renderer_gl1::setSurfaceStretchSpace()
 {
 	Renderer::setObjectSpace(); //// object put in original image space, 090715 off
-	glTranslated(-start1,-start2,-start3); //090715
 	if (//have_image() &&
 			b_surfStretch)  // 090423 RZC: stretch surface object with image thickness
 	{
 		glScaled(thicknessX, thicknessY, thicknessZ);
 	}
+    glTranslated(-start1,-start2,-start3); // crop origin is in voxel coordinates
 }
 void Renderer_gl1::drawObj()
 {

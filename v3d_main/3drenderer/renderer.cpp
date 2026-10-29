@@ -889,7 +889,10 @@ void Renderer::drawScaleBar(float AlineWidth)
 		double unitXscale = boundingBox.Dx()/boundingBox.Dmax();
         double sizeXunit = sizeX / unitXscale;
         char str[100];
-        sprintf(str, "%g", sizeXunit * sbar * zoomRatio);
+        // The image view's geometry is normalized by X spacing; convert the
+        // matching X voxel distance back to physical units for the scale bar.
+        sprintf(str, "%g%s", sizeXunit * sbar * zoomRatio * (has_image()?voxelSpacing[0]:1),
+                has_image()?" um":"");
         qDebug("sizeX=%g unitXscale=%g sizeXunit=%g", sizeX, unitXscale, sizeXunit);
 
         drawString(A1.x + td, A0.y, A0.z, str, 0, 0);

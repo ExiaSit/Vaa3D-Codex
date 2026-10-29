@@ -1,3 +1,5 @@
+#include <QSignalBlocker>
+#include "renderer_gl1.h"
 /*
  * Copyright (c)2006-2010  Hanchuan Peng (Janelia Farm, Howard Hughes Medical Institute).
  * All rights reserved.
@@ -117,8 +119,11 @@ void V3dR_MainWindow::createControlWidgets()
     contrastSlider = createContrastSlider();
 
     zthicknessBox = createThicknessSpinBox();
+    zthicknessBox->setParent(volDisplayOptGroup);
+    zthicknessBox->setDecimals(12);
+    zthicknessBox->setRange(1e-12,1e12);
     comboBox_channel = createChannelComboBox();
-    zthicknessBox->setToolTip("more thick more Slow!");
+    zthicknessBox->hide(); // Legacy API is retained; XYZ spacing is edited below.
 	comboBox_channel->setToolTip("Set the default channel for pinpointing in 3D image.");
 
 	checkBox_channelR = new QCheckBox("R", volDisplayOptGroup);
@@ -141,11 +146,10 @@ void V3dR_MainWindow::createControlWidgets()
 	layout_mainDisplayOptGroup->addWidget(transparentSlider_Label = new QLabel("Transparency"), 2, 0, 1, 9);
     layout_mainDisplayOptGroup->addWidget(transparentSlider,       2, 9-1, 1, 13);
 
-    layout_mainDisplayOptGroup->addWidget(new QLabel("Z-thick"), 3, 0, 1, 8);
-    layout_mainDisplayOptGroup->addWidget(zthicknessBox,         3, 5, 1, 7);
 
-    layout_mainDisplayOptGroup->addWidget(new QLabel("M-chan"), 3, 12, 1, 8);
-    layout_mainDisplayOptGroup->addWidget(comboBox_channel,    3, 12+5, 1, 5);
+
+    layout_mainDisplayOptGroup->addWidget(new QLabel(tr("描点通道 / M-chan")), 3, 0, 1, 12);
+    layout_mainDisplayOptGroup->addWidget(comboBox_channel,    3, 12, 1, 10);
 
     layout_mainDisplayOptGroup->addWidget(checkBox_channelR,      4, 0, 1, 4);
     layout_mainDisplayOptGroup->addWidget(checkBox_channelG,      4, 0+4, 1, 4);
@@ -154,6 +158,35 @@ void V3dR_MainWindow::createControlWidgets()
 
     layout_mainDisplayOptGroup->addWidget(contrastSlider_Label = new QLabel("Contrast"), 5, 0, 1, 9);
     layout_mainDisplayOptGroup->addWidget(contrastSlider,       5, 9-1, 1, 13);
+    auto spacingGroup=new QGroupBox(tr("XYZ 分辨率 / Voxel spacing (µm)"));
+    spacingGroup->setObjectName("voxelSpacingGroup");
+    auto spacingLayout=new QGridLayout(spacingGroup);
+    for (int axis=0;axis<3;++axis) {
+        auto field=new QDoubleSpinBox(spacingGroup);
+        voxelSpacingBoxes[axis]=field;
+        field->setObjectName(QString("voxelSpacing%1").arg("XYZ"[axis]));
+        field->setDecimals(6); field->setRange(.000001,1000000); field->setValue(1);
+        field->setSingleStep(.1); field->setKeyboardTracking(false);
+        field->setToolTip(tr("µm / voxel。修改后按 Enter 或点击应用；只改变当前视窗的物理显示比例。"));
+        spacingLayout->addWidget(new QLabel(QString("XYZ"[axis])),axis,0);
+        spacingLayout->addWidget(field,axis,1,1,2);
+    }
+    applyVoxelSpacing=new QPushButton(tr("应用 / Apply"));
+    applyVoxelSpacing->setObjectName("applyVoxelSpacing");
+    resetVoxelSpacing=new QPushButton(tr("恢复文件值"));
+    resetVoxelSpacing->setObjectName("resetVoxelSpacing");
+    resetVoxelSpacing->setToolTip(tr("恢复文件/图像的初始分辨率；未提供时恢复为 1 µm。"));
+    spacingLayout->addWidget(applyVoxelSpacing,3,1);
+    spacingLayout->addWidget(resetVoxelSpacing,3,2);
+    voxelSpacingStatus=new QLabel;voxelSpacingStatus->setWordWrap(true);
+    voxelSpacingStatus->setObjectName("voxelSpacingStatus");
+    voxelPhysicalExtent=new QLabel;voxelPhysicalExtent->setWordWrap(true);
+    voxelPhysicalExtent->setObjectName("voxelPhysicalExtent");
+    voxelPhysicalExtent->setToolTip(tr("覆盖尺寸 = 体素数 × 间距。视图自动适配；三轴同比例修改会改变物理尺寸，外观比例保持一致。"));
+    spacingLayout->addWidget(voxelSpacingStatus,4,0,1,3);
+    spacingLayout->addWidget(voxelPhysicalExtent,5,0,1,3);
+    layout_mainDisplayOptGroup->addWidget(spacingGroup,6,0,1,22);
+
 
 
 //	layout_mainDisplayOptGroup->setRowStretch( 1, 21 );
@@ -218,7 +251,7 @@ void V3dR_MainWindow::createControlWidgets()
 
     movieSaveButton = new QPushButton("Save Movie", miscDisplayOptGroup);
     animateButton = new QPushButton("Animate >>", miscDisplayOptGroup);
-	resOfOriginalImage = new QPushButton("Set corresponding image voxel size");
+	resOfOriginalImage = new QPushButton(tr("编辑 XYZ 分辨率"));
 	//BrainAtlas = new QPushButton("Start Brain Atlas");
     //reloadDataButton = new QPushButton("Reload", miscDisplayOptGroup);
 
@@ -722,6 +755,13 @@ void V3dR_MainWindow::createControlWidgets()
 	
     controlLayout->addStretch(0);
     controlLayout->setSpacing(0);
+    controlScrollArea = new QScrollArea(this);
+    controlScrollArea->setObjectName("volumeControlsScrollArea");
+    controlScrollArea->setWidget(controlGroup);
+    controlScrollArea->setWidgetResizable(true);
+    controlScrollArea->setFrameShape(QFrame::NoFrame);
+    controlScrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    controlScrollArea->setFixedWidth(CTRL_SIZEX + controlScrollArea->verticalScrollBar()->sizeHint().width());
     //------------------------------------------------
 
     // @ADDED by Alessandro on 2015-05-07 : hide/display controls.
@@ -739,7 +779,7 @@ void V3dR_MainWindow::createControlWidgets()
     centralLayout = new QHBoxLayout(this);
     centralLayout->addWidget(viewGroup, 1);
     centralLayout->addWidget(hideDisplayControlsButton, 0);
-    centralLayout->addWidget(controlGroup);
+    centralLayout->addWidget(controlScrollArea);
     //centralLayout->setContentsMargins(10,10,10,10);
     setLayout(centralLayout);
 
@@ -800,13 +840,13 @@ void V3dR_MainWindow::hideDisplayControls()
 {
     if(!displayControlsHidden)
     {
-        controlGroup->setVisible(false);
+        controlScrollArea->setVisible(false);
         hideDisplayControlsButton->setIcon(QIcon(":/pic/arrow_left.png"));
         displayControlsHidden = true;
     }
     else
     {
-        controlGroup->setVisible(true);
+        controlScrollArea->setVisible(true);
         hideDisplayControlsButton->setIcon(QIcon(":/pic/arrow_right.png"));
         displayControlsHidden = false;
     }
@@ -863,9 +903,16 @@ void V3dR_MainWindow::connectSignal()
 	if (comboBox_channel) {
 		connect(comboBox_channel, SIGNAL(currentIndexChanged(int)), glWidget, SLOT(setCurChannel(int)));
 	}
-	if (zthicknessBox) {
-		connect(zthicknessBox, SIGNAL(valueChanged(double)), glWidget, SLOT(setThickness(double)));
-	}
+    auto applySpacing=[this]() {
+        glWidget->setVoxelSpacing(voxelSpacingBoxes[0]->value(),voxelSpacingBoxes[1]->value(),voxelSpacingBoxes[2]->value());
+    };
+    connect(applyVoxelSpacing,&QPushButton::clicked,this,applySpacing);
+    for (int axis=0;axis<3;++axis)
+        connect(voxelSpacingBoxes[axis],&QDoubleSpinBox::editingFinished,this,applySpacing);
+    connect(resetVoxelSpacing,&QPushButton::clicked,glWidget,&V3dR_GLWidget::resetVoxelSpacing);
+    connect(glWidget,&V3dR_GLWidget::voxelSpacingChanged,this,&V3dR_MainWindow::refreshVoxelSpacingControls);
+    // Existing plugins copy this hidden control when synchronizing viewers.
+    connect(zthicknessBox,SIGNAL(valueChanged(double)),glWidget,SLOT(setThickness(double)));
 	if (checkBox_channelR) {
 		connect(checkBox_channelR, SIGNAL(toggled(bool)), glWidget, SLOT(setChannelR(bool)));
 	}
@@ -1164,6 +1211,39 @@ void V3dR_MainWindow::connectSignal()
 }
 
 
+void V3dR_MainWindow::showVoxelSpacingControls()
+{
+    if (displayControlsHidden) hideDisplayControls();
+    tabOptions->setCurrentIndex(0);
+    controlScrollArea->ensureWidgetVisible(voxelSpacingBoxes[0]);
+    voxelSpacingBoxes[0]->setFocus();
+    voxelSpacingBoxes[0]->selectAll();
+}
+
+void V3dR_MainWindow::refreshVoxelSpacingControls()
+{
+    if (!glWidget || !voxelSpacingStatus) return;
+    auto r=dynamic_cast<Renderer_gl1*>(glWidget->getRenderer());
+    bool enabled=r && r->has_image();
+    {
+        QSignalBlocker block(zthicknessBox);
+        zthicknessBox->setValue(glWidget->voxelSpacing(2)/glWidget->voxelSpacing(0));
+    }
+    for (int axis=0;axis<3;++axis) {
+        QSignalBlocker block(voxelSpacingBoxes[axis]);
+        voxelSpacingBoxes[axis]->setValue(glWidget->voxelSpacing(axis));
+        voxelSpacingBoxes[axis]->setEnabled(enabled);
+    }
+    applyVoxelSpacing->setEnabled(enabled);resetVoxelSpacing->setEnabled(enabled);
+    voxelSpacingStatus->setText(enabled?glWidget->voxelSpacingSource():tr("请先打开体图像"));
+    if (enabled) {
+        voxelPhysicalExtent->setText(tr("XYZ 覆盖尺寸：%1 × %2 × %3 µm")
+            .arg((r->dataBox.Dx()+1)*glWidget->voxelSpacing(0),0,'g',7)
+            .arg((r->dataBox.Dy()+1)*glWidget->voxelSpacing(1),0,'g',7)
+            .arg((r->dataBox.Dz()+1)*glWidget->voxelSpacing(2),0,'g',7));
+    } else voxelPhysicalExtent->clear();
+}
+
 void V3dR_MainWindow::initControlValue()
 {
 	qDebug("V3dR_MainWindow::initControlValue");
@@ -1199,20 +1279,7 @@ void V3dR_MainWindow::initControlValue()
     if (transparentSlider) transparentSlider->setValue(0); //10. max=100
     if (contrastSlider) contrastSlider->setValue(0);
 	//if (thicknessSlider) thicknessSlider->setValue(1);    //1, max=10
-	if (zthicknessBox)
-	{
-		float curthickness=1.0;
-#ifndef test_main_cpp
-		if (_idep && _idep->image4d)
-		{
-			float tmpthickness = 2.0*_idep->image4d->getRezZ()/(_idep->image4d->getRezX()+_idep->image4d->getRezY());
-			curthickness = CLAMP(1, ZTHICK_RANGE, tmpthickness);
-			//v3d_msg(QString("the clamped default z thickness is %1\n").arg(curthickness),0);
-		}
-#endif
-		zthicknessBox->setValue(curthickness); //1
-		//v3d_msg(QString("set the default 3d viewer widget zthickness %1\n").arg(zthicknessBox->value()), 0);
-	}
+    refreshVoxelSpacingControls();
 
 	if (checkBox_channelR)	{
 		checkBox_channelR->setChecked(true);

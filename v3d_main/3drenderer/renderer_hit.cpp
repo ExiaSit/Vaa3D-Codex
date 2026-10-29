@@ -1483,9 +1483,9 @@ int Renderer_gl1::processHit(int namelen, int names[], int cx, int cy, bool b_me
     			const ImageMarker & m = listMarker.at(tmpind);
     			XYZ p = XYZ(m);
 
-    			p.x = p.x*thicknessX -start1;
-    			p.y = p.y*thicknessY -start2;
-    			p.z = p.z*thicknessZ -start3;
+            p.x = (p.x-start1)*thicknessX;
+            p.y = (p.y-start2)*thicknessY;
+            p.z = (p.z-start3)*thicknessZ;
 
     			BoundingBox & BB = boundingBox;
     			float DX = BB.Dx();

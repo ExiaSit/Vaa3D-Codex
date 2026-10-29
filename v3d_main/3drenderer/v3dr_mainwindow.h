@@ -80,6 +80,8 @@ public slots:
 	void setYCutLockIcon(bool);
 	void setZCutLockIcon(bool);
 
+	void refreshVoxelSpacingControls();
+	void showVoxelSpacingControls();
 	void initControlValue(); // easy to edit, by RZC 080828, easy to reset 081122
 	void initVolumeTimeRange();
 	void initVolumeCutRange();  // called by initControlValue
@@ -195,6 +197,9 @@ public:
 	QLabel *thicknessSlider_Label, *transparentSlider_Label; //for disable, by RZC 080822
     QLabel *contrastSlider_Label; //by ZZ 03072018
 
+    QDoubleSpinBox *voxelSpacingBoxes[3] = {nullptr,nullptr,nullptr};
+    QLabel *voxelSpacingStatus = nullptr, *voxelPhysicalExtent = nullptr;
+    QPushButton *applyVoxelSpacing = nullptr, *resetVoxelSpacing = nullptr;
 	QDoubleSpinBox *zthicknessBox; //by PHC, 090215
 	QComboBox *comboBox_channel;
     QAbstractSlider *thicknessSlider, *transparentSlider;
@@ -217,6 +222,7 @@ public:
 
     // @ADDED by Alessandro on 2015-05-07 : hide/display controls.
     QGroupBox *controlGroup;
+    QScrollArea *controlScrollArea = nullptr;
     QPushButton *hideDisplayControlsButton;
     bool displayControlsHidden;
     QWidget *toolBtnGroup;
