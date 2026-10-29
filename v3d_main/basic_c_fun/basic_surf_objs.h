@@ -158,6 +158,7 @@ struct LabelSurf : public BasicSurfObj
 {
 	int label;			// label
 	int label2;			// label2 (range from label to label2)
+    QString sourceFile; // Absolute path of the mask/mesh that created this surface; display metadata only.
 
 	operator int() const { return label; }
 	LabelSurf() {label=label2=0;}

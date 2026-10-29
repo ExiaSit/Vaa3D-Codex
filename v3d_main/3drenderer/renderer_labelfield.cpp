@@ -325,7 +325,7 @@ public:
     std::vector<std::vector<float>> arrays;
     BoundingBox bounds;
     bool success=false;
-    MaskSurfaceJob(QString file,const MaskMeshOptions &o):path(file),options(o),bounds(NULL_BoundingBox){}
+    MaskSurfaceJob(QString file,const MaskMeshOptions &o):path(QFileInfo(file).absoluteFilePath()),options(o),bounds(NULL_BoundingBox){}
     ~MaskSurfaceJob(){Q_ASSERT(!isRunning());}
 protected:
     void run() override
@@ -502,7 +502,8 @@ void Renderer_gl1::loadTiffMaskAsync(const QString &filename,int ch)
         }
         QList<Triangle*> retired;
         if(job->options.replace){retired.swap(list_listTriangle);cleanLabelfieldSurf();}
-        for(auto label:job->labels){label.n=listLabelSurf.size()+1;label.color=random_rgba8(255);listLabelSurf<<label;}
+        for(auto label:job->labels){label.n=listLabelSurf.size()+1;label.color=random_rgba8(255);
+            label.sourceFile=job->path;listLabelSurf<<label;}
         list_listTriangle+=job->triangles;job->triangles=retired;
         list_glistLabel+=upload->parents;maskChunkLists+=upload->chunks;upload->parents.clear();upload->chunks.clear();
         if(job->options.replace)labelBB=job->bounds;else labelBB.expand(job->bounds);
@@ -522,6 +523,16 @@ void Renderer_gl1::constructLabelfieldSurf(int mesh_method, int mesh_density)
 	qDebug("    Renderer_gl1::constructLabelfieldSurf");
 
     V3DLONG i;
+    // Capture before modal dialogs/processEvents can run another import. A
+    // generated, unsaved image has no file provenance; do not invent a path.
+    QString sourceFile;
+    if (lf_fromfile && !lf_data_title.isEmpty())
+        sourceFile = QFileInfo(lf_data_title).absoluteFilePath();
+    else if (lf_image4d && lf_image4d->getFileName())
+    {
+        const QFileInfo source(QString::fromLocal8Bit(lf_image4d->getFileName()));
+        if (source.isFile()) sourceFile = source.absoluteFilePath();
+    }
 
 	//==========================================
 	//090222: try to import surface obj name if possible
@@ -630,6 +641,9 @@ void Renderer_gl1::constructLabelfieldSurf(int mesh_method, int mesh_density)
 
 		listLabelSurf.append(S);
     }
+
+    for (i=0; i<listLabelSurf.size(); ++i)
+        listLabelSurf[i].sourceFile = sourceFile;
 
 	//==========================================
 	//090222: try to import surface obj name if possible
@@ -1029,6 +1043,7 @@ void Renderer_gl1::loadWavefrontOBJ(const QString& filename)
 
 			count++;
 		    LabelSurf S;
+            S.sourceFile = QFileInfo(filename).absoluteFilePath();
 	        //memset(&S, 0, sizeof(S));
 
 			QStringList qsl = QString(buf).split(" ",QString::SkipEmptyParts);
@@ -1125,6 +1140,7 @@ void Renderer_gl1::loadWavefrontOBJ(const QString& filename)
 			qDebug("  /// only one default group %d",  label);
 
 		    LabelSurf S;
+            S.sourceFile = QFileInfo(filename).absoluteFilePath();
 	        //memset(&S, 0, sizeof(S));
 
 	        S.n = g_num;
@@ -1333,6 +1349,7 @@ void Renderer_gl1::loadV3DSurface(const QString& filename)
     		PROGRESS_PERCENT(90*(i+1)/g_num);
 
     		LabelSurf S;
+            S.sourceFile = QFileInfo(filename).absoluteFilePath();
 	        //memset(&S, 0, sizeof(S)); //cannot simply clear complex class
 
     	    int g_label0;
@@ -1481,6 +1498,7 @@ void Renderer_gl1::loadV3DSFile(const QString& filename)
         for (i=0; i<g_num; i++)		// each group/label
         {
             LabelSurf S;
+            S.sourceFile = QFileInfo(filename).absoluteFilePath();
 
             int g_label0;
             int g_label1;

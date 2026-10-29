@@ -57,7 +57,10 @@ static void cancel(V3dR_MainWindow *window)
 int main(int argc,char **argv)
 {
     Q_INIT_RESOURCE(v3d);auto &app=*V3dApplication::getInstance(argc,argv);auto &mw=*app.getMainWindow();mw.show();
-    QTemporaryDir dir;assert(dir.isValid());QString path=dir.path()+"/mask.tif";fixture(path);
+    QTemporaryDir dir;assert(dir.isValid());
+    QString folderA=dir.path()+QString::fromUtf8("/输入 A"),folderB=dir.path()+QString::fromUtf8("/输入 B");
+    assert(QDir().mkpath(folderA)&&QDir().mkpath(folderB));
+    QString path=folderA+"/mask.tif",pathB=folderB+"/mask.tif";fixture(path);fixture(pathB);
     auto a=mw.createMdiChild();auto b=mw.createMdiChild();
     a->newProcessedImage("Mask-A",new unsigned char[32*32*32](),32,32,32,1,V3D_UINT8);
     b->newProcessedImage("Mask-B",new unsigned char[32*32*32](),32,32,32,1,V3D_UINT8);
@@ -75,7 +78,7 @@ int main(int argc,char **argv)
             qint64 now=clock.elapsed();maxGap=qMax(maxGap,now-last);last=now;++beats;
             if(!QApplication::activeModalWidget()){click(&mainButton);click(&otherButton);}
         });heartbeat.start();
-        start(ga,path,70);start(gb,path,60,false,1);
+        start(ga,path,70);start(gb,QDir::current().relativeFilePath(pathB),60,false,1);
         assert(!QApplication::activeModalWidget());
         int zoom=gb->zoom();QPointF pos(100,100);
         QWheelEvent wheel(pos,gb->mapToGlobal(pos.toPoint()),QPoint(),QPoint(0,120),Qt::NoButton,Qt::NoModifier,Qt::NoScrollPhase,false);
@@ -84,6 +87,8 @@ int main(int argc,char **argv)
         assert(beats>5&&mainClicks>5&&otherClicks>5);assert(maxGap<2000);
         for(auto r:{ra,rb}){assert(r->listLabelSurf.size()==2&&r->list_listTriangle.size()==2);assert(r->listLabelSurf[0].label==1&&r->listLabelSurf[1].label==2);
             assert(numTriangles(r->list_listTriangle[0])>0&&numTriangles(r->list_listTriangle[1])>0);assert(!r->maskChunkLists.isEmpty());}
+        for(const auto &s:ra->listLabelSurf)assert(s.sourceFile==path);
+        for(const auto &s:rb->listLabelSurf)assert(s.sourceFile==pathB);
         // GPU lists really render, and independent manager visibility/Y-flip remain effective.
         ga->surfaceSelectDialog(stLabelSurface-1);gb->surfaceSelectDialog(stLabelSurface-1);
         auto da=wa->findChild<V3dr_surfaceDialog*>();auto db=wb->findChild<V3dr_surfaceDialog*>();assert(da&&db&&da!=db);
@@ -96,21 +101,44 @@ int main(int argc,char **argv)
         table=qobject_cast<QTableWidget*>(tabs->widget(stLabelSurface-1));
         assert(rb->listLabelSurf[0].on);table->item(0,0)->setCheckState(Qt::Checked);
         table->item(0,table->columnCount()-1)->setCheckState(Qt::Checked);assert(ra->listLabelSurf[0].yFlipDisplay&&!rb->listLabelSurf[0].yFlipDisplay);
+        // Same basename and label IDs from a second mask must retain per-row provenance.
+        start(ga,pathB,40);waitFor([&](){return idle(ga);});assert(ra->listLabelSurf.size()==4);
+        auto verifySources=[&](){
+            auto t=qobject_cast<QTableWidget*>(da->findChild<QTabWidget*>()->widget(stLabelSurface-1));
+            assert(t&&t->rowCount()==4&&t->horizontalHeaderItem(5)->text().contains("Source path"));
+            assert(t->horizontalHeader()->visualIndex(t->columnCount()-1)==1);
+            for(int i=0;i<4;++i){QString expected=i<2?path:pathB;
+                assert(ra->listLabelSurf[i].sourceFile==expected);
+                assert(t->item(i,5)->text()==expected&&t->item(i,5)->toolTip()==expected);
+                assert(!(t->item(i,5)->flags()&Qt::ItemIsEditable));}
+            assert(t->columnWidth(5)<=480);
+            return t;
+        };
+        table=verifySources();table->item(0,0)->setCheckState(Qt::Unchecked);
+        table=verifySources();table->item(2,table->columnCount()-1)->setCheckState(Qt::Checked);
+        assert(ra->listLabelSurf[2].yFlipDisplay&&!rb->listLabelSurf[0].yFlipDisplay);
+        da->undo();verifySources();ga->updateTool();verifySources();
+        da->resize(1150,540);da->grab().save("/tmp/vaa3d-mask-source-paths.png");
+        start(ga,path,40,true);waitFor([&](){return idle(ga);});assert(ra->listLabelSurf.size()==2);
         Triangle *old=ra->list_listTriangle[0];
-        start(ga,path,1000,true);QTimer::singleShot(200,wa,[=](){cancel(wa);});waitFor([&](){return idle(ga);});
+        start(ga,pathB,1000,true);QTimer::singleShot(200,wa,[=](){cancel(wa);});waitFor([&](){return idle(ga);});
         assert(ra->list_listTriangle[0]==old&&ra->listLabelSurf.size()==2);
+        for(const auto &s:ra->listLabelSurf)assert(s.sourceFile==path);
         // Cancel after CPU work, during chunked GPU upload; staged GL lists must be discarded.
         bool cancelledUpload=false;QTimer uploadCancel;uploadCancel.setInterval(1);
         QObject::connect(&uploadCancel,&QTimer::timeout,[&](){auto p=wa->findChild<QProgressDialog*>("maskImportProgress");
             if(p&&p->labelText().contains(QString::fromUtf8("上传"))){cancelledUpload=true;uploadCancel.stop();cancel(wa);}});
-        start(ga,path,85,true);uploadCancel.start();waitFor([&](){return idle(ga);});uploadCancel.stop();
+        start(ga,pathB,85,true);uploadCancel.start();waitFor([&](){return idle(ga);});uploadCancel.stop();
         assert(cancelledUpload&&ra->list_listTriangle[0]==old&&ra->listLabelSurf.size()==2);
+        for(const auto &s:ra->listLabelSurf)assert(s.sourceFile==path);
         // A replacement succeeds atomically, without appending or changing B.
-        start(ga,path,45,true);waitFor([&](){return idle(ga);});assert(ra->listLabelSurf.size()==2&&ra->list_listTriangle[0]!=old&&rb->listLabelSurf.size()==2);
+        start(ga,pathB,45,true);waitFor([&](){return idle(ga);});assert(ra->listLabelSurf.size()==2&&ra->list_listTriangle[0]!=old&&rb->listLabelSurf.size()==2);
+        for(const auto &s:ra->listLabelSurf)assert(s.sourceFile==pathB);
         // A failed read reports a window-local error and preserves the existing surfaces.
         QString invalid=dir.path()+"/broken.tif";QFile bad(invalid);assert(bad.open(QIODevice::WriteOnly));bad.write("broken");bad.close();
         old=ra->list_listTriangle[0];start(ga,invalid,30,true);waitFor([&](){return idle(ga);});
         assert(ra->list_listTriangle[0]==old&&ra->listLabelSurf.size()==2);
+        for(const auto &s:ra->listLabelSurf)assert(s.sourceFile==pathB);
         auto message=wa->findChild<QMessageBox*>();assert(message);message->accept();qApp->processEvents();
         // Closing a target with a live job cancels it, and another target can finish.
         start(ga,path,1000);start(gb,path,40);QPointer<V3dR_GLWidget> dead=ga;wa->close();

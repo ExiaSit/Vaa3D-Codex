@@ -488,6 +488,8 @@ void V3dr_surfaceDialog::updatedContent(QTableWidget* t) //090826
 	if (! in_batch_stack.empty() && in_batch_stack.last()==true) return; //skip until end_batch
 
 	t->resizeColumnsToContents();
+    if (t == table[stLabelSurface])
+        t->setColumnWidth(5, qBound(220, t->columnWidth(5), 480));
     if(renderer)renderer->updateBoundingBox();
 
 	UPDATE_VIEW(glwidget);
@@ -792,6 +794,7 @@ QTableWidget* V3dr_surfaceDialog::createTableSurf()
 
 	QStringList qsl;
 	qsl << "on/off" << "color" << "label" << "name" << "comment";
+    qsl << QString::fromUtf8("源路径 / Source path");
     qsl << tr("Y flip");
 	int row = r->listLabelSurf.size();
 	int col = qsl.size();
@@ -801,6 +804,8 @@ QTableWidget* V3dr_surfaceDialog::createTableSurf()
     // Keep logical indices used by existing handlers; show Y flip after on/off.
     t->horizontalHeader()->moveSection(col-1,1);
     t->horizontalHeaderItem(col-1)->setToolTip(tr("Flip this object along Y for display only. Original coordinates are unchanged. Turn off before coordinate editing."));
+
+    t->horizontalHeaderItem(5)->setToolTip(QString::fromUtf8("生成或导入此表面的源文件。悬浮在路径上可查看完整路径。"));
 
 	//qDebug("  create begin t->rowCount = %d", t->rowCount());
 	for (int i=0; i<row; i++)
@@ -828,12 +833,19 @@ QTableWidget* V3dr_surfaceDialog::createTableSurf()
 
 		ADD_STRING( r->listLabelSurf[i].comment );
 
+        const QString source = r->listLabelSurf[i].sourceFile;
+        ADD_STRING(source.isEmpty() ? QString::fromUtf8("未知来源 / Unknown") : source);
+        curItem->setToolTip(source.isEmpty()
+            ? QString::fromUtf8("此表面未记录源文件路径。") : source);
+        curItem->setFlags(curItem->flags() & ~Qt::ItemIsEditable);
+
         ADD_ONOFF(r->listLabelSurf[i].yFlipDisplay);
 		MESSAGE_ASSERT(j==col);
 	}
 	//qDebug("  end   t->rowCount = %d", t->rowCount());
 
 	t->resizeColumnsToContents();
+    t->setColumnWidth(5, qBound(220, t->columnWidth(5), 480));
 	return t;
 }
 
