@@ -53,7 +53,7 @@ int main(int argc,char **argv){
         auto win=child->mypara_3Dview.window3D;assert(win);win->resize(1350,900);settle();assert(win->height()==900);
         auto gl=win->getGLWidget();auto r=dynamic_cast<Renderer_gl1*>(gl->getRenderer());assert(r);
         QDoubleSpinBox *fields[3];for(int i=0;i<3;++i){fields[i]=win->findChild<QDoubleSpinBox*>(QString("voxelSpacing%1").arg("XYZ"[i]));assert(fields[i]&&fields[i]->isEnabled());}
-        auto apply=win->findChild<QPushButton*>("applyVoxelSpacing");auto reset=win->findChild<QPushButton*>("resetVoxelSpacing");assert(apply&&reset);
+        auto apply=win->findChild<QPushButton*>("rescaleOneMicron");auto reset=win->findChild<QPushButton*>("resetVoxelSpacing");assert(apply&&reset);
         auto scroll=win->findChild<QScrollArea*>("volumeControlsScrollArea");assert(scroll);
         win->hideDisplayControls();assert(!scroll->isVisible());gl->setVoxSize();settle();
         assert(scroll->isVisible()&&fields[0]->isVisible());
@@ -64,7 +64,7 @@ int main(int argc,char **argv){
             win->grab().save("/tmp/vaa3d-voxel-spacing-real.png");
         }
         else assert(originalX==1&&originalZ==1);
-        auto setFields=[&](double x,double y,double z){fields[0]->setValue(x);fields[1]->setValue(y);fields[2]->setValue(z);apply->click();settle();
+        auto setFields=[&](double x,double y,double z){fields[0]->setValue(x);fields[1]->setValue(y);fields[2]->setValue(z);gl->setVoxelSpacing(x,y,z);settle();
             assert(near(r->thicknessX,1)&&near(r->thicknessY,y/x)&&near(r->thicknessZ,z/x));
             assert(near(r->boundingBox.Dy()/r->boundingBox.Dx(),(r->dataBox.Dy()+1)/(r->dataBox.Dx()+1)*y/x));};
         gl->enableShowAxes(false);gl->enableShowBoundingBox(false);gl->setRenderMode_Maxip(true);gl->enableOrthoView(true);
@@ -109,11 +109,11 @@ int main(int argc,char **argv){
             other->mypara_3Dview.window3D->close();
         }
         reset->click();settle();assert(near(fields[0]->value(),originalX)&&near(fields[2]->value(),originalZ));
-        // Enter commits a field without requiring the Apply button.
-        fields[1]->setValue(3);QMetaObject::invokeMethod(fields[1],"editingFinished");assert(gl->voxelSpacing(1)==3);
+        // Editing source calibration previews output without reinterpreting the image.
+        fields[1]->setValue(3);QMetaObject::invokeMethod(fields[1],"editingFinished");assert(gl->voxelSpacing(1)!=3);
         reset->click();settle();win->grab().save(real.isEmpty()?"/tmp/vaa3d-voxel-spacing-controls.png":"/tmp/vaa3d-voxel-spacing-real-final.png");
         assert(fingerprint(child->getImageData())==initial);
-        qInfo("VOXEL_SPACING_GUI_PASS: metadata, fields, real framebuffer aspect, subunit/large ratios, invalid values, units/extents, marker/surface/crop transforms, view isolation, recreation, reset and unchanged pixels");app.quit();
+        qInfo("VOXEL_SPACING_GUI_PASS: metadata, fields, real framebuffer aspect, subunit/large ratios, invalid values, units/extents, marker/surface/crop transforms, view isolation, recreation, reset, source-spacing preview and unchanged pixels");app.quit();
     });
     QTimer::singleShot(120000,&app,[](){qFatal("Voxel spacing GUI timeout");});return app.exec();
 }

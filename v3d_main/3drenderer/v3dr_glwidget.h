@@ -280,6 +280,7 @@ public slots:
     virtual void setContrast(int);
 	virtual void setThickness(double);
     bool setVoxelSpacing(double x, double y, double z);
+    void rescaleOneMicron(double x,double y,double z);
     void resetVoxelSpacing();
     double voxelSpacing(int axis) const {return _voxelSpacing[axis];}
     QString voxelSpacingSource() const {return _voxelSpacingSource;}
@@ -462,6 +463,7 @@ public slots:
 
 signals:
     void voxelSpacingChanged();
+    void rescaleFinished(bool success);
     void viewerReady();
     void maskImportFinished(const QString &path, bool success, const QString &error);
     void rendererAboutToBeDeleted();
@@ -567,6 +569,7 @@ public:
 	int _CStransparency, _markerSize, _curChannel;
     double _voxelSpacing[3] = {1,1,1};
     bool _voxelSpacingInitialized = false;
+    bool _rescaleRunning = false;
     QString _voxelSpacingSource;
 	float _thickness;
 	int _Bright, _Contrast, sUpdate_bright, sUpdate_track;

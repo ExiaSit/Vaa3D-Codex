@@ -1,5 +1,6 @@
 #include <QSignalBlocker>
 #include "renderer_gl1.h"
+#include "../basic_c_fun/RescaleOneMicron.h"
 /*
  * Copyright (c)2006-2010  Hanchuan Peng (Janelia Farm, Howard Hughes Medical Institute).
  * All rights reserved.
@@ -158,7 +159,7 @@ void V3dR_MainWindow::createControlWidgets()
 
     layout_mainDisplayOptGroup->addWidget(contrastSlider_Label = new QLabel("Contrast"), 5, 0, 1, 9);
     layout_mainDisplayOptGroup->addWidget(contrastSlider,       5, 9-1, 1, 13);
-    auto spacingGroup=new QGroupBox(tr("XYZ 分辨率 / Voxel spacing (µm)"));
+    auto spacingGroup=new QGroupBox(tr("原图体素间距 (µm) → Rescale 1 µm"));
     spacingGroup->setObjectName("voxelSpacingGroup");
     auto spacingLayout=new QGridLayout(spacingGroup);
     for (int axis=0;axis<3;++axis) {
@@ -167,12 +168,12 @@ void V3dR_MainWindow::createControlWidgets()
         field->setObjectName(QString("voxelSpacing%1").arg("XYZ"[axis]));
         field->setDecimals(6); field->setRange(.000001,1000000); field->setValue(1);
         field->setSingleStep(.1); field->setKeyboardTracking(false);
-        field->setToolTip(tr("µm / voxel。修改后按 Enter 或点击应用；只改变当前视窗的物理显示比例。"));
+        field->setToolTip(tr("填写原图的 µm / voxel。下方按钮按此间距重采样全部通道，生成 1 × 1 × 1 µm 的新图像。"));
         spacingLayout->addWidget(new QLabel(QString("XYZ"[axis])),axis,0);
         spacingLayout->addWidget(field,axis,1,1,2);
     }
-    applyVoxelSpacing=new QPushButton(tr("应用 / Apply"));
-    applyVoxelSpacing->setObjectName("applyVoxelSpacing");
+    applyVoxelSpacing=new QPushButton(tr("Rescale → 1 µm"));
+    applyVoxelSpacing->setObjectName("rescaleOneMicron");
     resetVoxelSpacing=new QPushButton(tr("恢复文件值"));
     resetVoxelSpacing->setObjectName("resetVoxelSpacing");
     resetVoxelSpacing->setToolTip(tr("恢复文件/图像的初始分辨率；未提供时恢复为 1 µm。"));
@@ -182,7 +183,7 @@ void V3dR_MainWindow::createControlWidgets()
     voxelSpacingStatus->setObjectName("voxelSpacingStatus");
     voxelPhysicalExtent=new QLabel;voxelPhysicalExtent->setWordWrap(true);
     voxelPhysicalExtent->setObjectName("voxelPhysicalExtent");
-    voxelPhysicalExtent->setToolTip(tr("覆盖尺寸 = 体素数 × 间距。视图自动适配；三轴同比例修改会改变物理尺寸，外观比例保持一致。"));
+    voxelPhysicalExtent->setToolTip(tr("输出轴长 = round(原图轴长 × 原间距 / 1 µm)，至少 1 个体素。缩小时体素面积平均，放大时线性插值；不复制 SWC、Mask 或 Marker。"));
     spacingLayout->addWidget(voxelSpacingStatus,4,0,1,3);
     spacingLayout->addWidget(voxelPhysicalExtent,5,0,1,3);
     layout_mainDisplayOptGroup->addWidget(spacingGroup,6,0,1,22);
@@ -904,11 +905,11 @@ void V3dR_MainWindow::connectSignal()
 		connect(comboBox_channel, SIGNAL(currentIndexChanged(int)), glWidget, SLOT(setCurChannel(int)));
 	}
     auto applySpacing=[this]() {
-        glWidget->setVoxelSpacing(voxelSpacingBoxes[0]->value(),voxelSpacingBoxes[1]->value(),voxelSpacingBoxes[2]->value());
+        glWidget->rescaleOneMicron(voxelSpacingBoxes[0]->value(),voxelSpacingBoxes[1]->value(),voxelSpacingBoxes[2]->value());
     };
     connect(applyVoxelSpacing,&QPushButton::clicked,this,applySpacing);
     for (int axis=0;axis<3;++axis)
-        connect(voxelSpacingBoxes[axis],&QDoubleSpinBox::editingFinished,this,applySpacing);
+        connect(voxelSpacingBoxes[axis],QOverload<double>::of(&QDoubleSpinBox::valueChanged),this,&V3dR_MainWindow::previewRescaleOutput);
     connect(resetVoxelSpacing,&QPushButton::clicked,glWidget,&V3dR_GLWidget::resetVoxelSpacing);
     connect(glWidget,&V3dR_GLWidget::voxelSpacingChanged,this,&V3dR_MainWindow::refreshVoxelSpacingControls);
     // Existing plugins copy this hidden control when synchronizing viewers.
@@ -1242,6 +1243,23 @@ void V3dR_MainWindow::refreshVoxelSpacingControls()
             .arg((r->dataBox.Dy()+1)*glWidget->voxelSpacing(1),0,'g',7)
             .arg((r->dataBox.Dz()+1)*glWidget->voxelSpacing(2),0,'g',7));
     } else voxelPhysicalExtent->clear();
+    previewRescaleOutput();
+}
+
+void V3dR_MainWindow::previewRescaleOutput()
+{
+    auto img=v3dr_getImage4d(_idep);
+    if (!img || !glWidget) return;
+    try {
+        auto p=micron::plan({{img->getXDim(),img->getYDim(),img->getZDim(),img->getCDim()}},
+            {{voxelSpacingBoxes[0]->value(),voxelSpacingBoxes[1]->value(),voxelSpacingBoxes[2]->value()}},int(img->getDatatype()));
+        voxelPhysicalExtent->setText(tr("输出：%1 × %2 × %3，%4 通道\n1 × 1 × 1 µm；生成新图，不复制标注")
+            .arg(p.out[0]).arg(p.out[1]).arg(p.out[2]).arg(p.out[3]));
+        applyVoxelSpacing->setEnabled(!glWidget->_rescaleRunning);
+    } catch (const std::exception &e) {
+        voxelPhysicalExtent->setText(tr("无法重采样：%1").arg(QString::fromUtf8(e.what())));
+        applyVoxelSpacing->setEnabled(false);
+    }
 }
 
 void V3dR_MainWindow::initControlValue()

@@ -249,25 +249,27 @@ XDG_CONFIG_HOME="$(mktemp -d /tmp/vaa3d-channel-colors-XXXXXX)" LD_PRELOAD=/usr/
 可附加真实四通道 uint16 TIFF 路径，使用同一界面验证其通道。测试检查真实选色对话框、各通道 framebuffer 颜色/显隐、取消、对比度、二维/三维纹理、压缩开关、PBO streaming（合成数据）、MIP/Alpha/切面、颜色文件保存/载入与旧文件/无效索引、图像内存哈希不变；合成模式还检查单通道默认白色、Undo、两视窗隔离及渲染器销毁时面板清理。成功标记 `VOLUME_CHANNEL_COLORS_GUI_PASS`，截图位于 `/tmp/vaa3d-channel-controls*.png` 和 `/tmp/vaa3d-channel-volume*.png`，不覆盖源图像。
 
 
-## 3D 浏览器 XYZ 分辨率
+## 3D 浏览器 XYZ 标定与 Rescale 到 1 µm
 
-在右侧 `Controls → Volume → XYZ 分辨率 / Voxel spacing (µm)` 查看和编辑每个体素沿 X、Y、Z 的物理间距。输入后按 Enter、离开输入框或点击“应用 / Apply”，图像按 XYZ 比例即时拉伸或压缩；“恢复文件值”恢复文件/图像的初始值。下方显示来源和 `体素数 × 间距` 得到的覆盖尺寸（不同于首末切片中心的距离）。右侧控件可滚动，较矮窗口也能访问底部旋转控件；Others 的“编辑 XYZ 分辨率”会跳到这些输入框。
+右侧 `Controls → Volume → 原图体素间距 (µm) → Rescale 1 µm` 的 X/Y/Z 表示**输入图像**每个体素的物理间距。程序自动读取有效 OME 信息；缺少标定时提示默认 1 µm，可手动填入真实值。“恢复文件值”恢复原图标定。修改输入框只更新预期输出尺寸，不再直接拉伸图像；主按钮已从“应用显示比例”改为 **Rescale → 1 µm**。
 
-TIFF 加载时读取匹配当前尺寸、单组 Pixels、SizeT=1 且完整有效的 OME PhysicalSizeX/Y/Z，换算为 µm；OME 未写单位时按规范默认 µm。此真实四通道文件自动显示 X=0.564542、Y=0.564542、Z=1.444444 µm，覆盖尺寸约 578.091 × 578.091 × 40.44443 µm。缺少或无法识别的信息使用图像已有分辨率属性；属性也是默认值时明确显示“默认 1 µm，可修改”。尚未解析普通 TIFF 的分辨率标签、ImageJ spacing、多系列和时间序列的空间标定。
+点击后在后台重采样全部通道，完成时生成名字带 `[rescale 1um]` 的新图像并打开其 3D 视窗，XYZ 均为 1 µm；源图像和已有视窗保留。支持 uint8、uint16、float32，保留原位深和所有通道（3D 颜色显示仍限前四通道）。缩小的轴对源体素覆盖区间加权平均，抑制降采样混叠；放大的轴按体素中心做线性插值，边界延拓最外侧体素。整数结果四舍五入。输出轴长为 `max(1, round(原轴长 × 原间距 / 1 µm))`；网格起点采用共同的体素外边界，取整和至少保留一个体素的约束会略微改变最外侧覆盖范围。插值不会增加真实成像分辨率。
 
-设置仅作用于当前 3D 视窗，不修改原始像素、TIFF 文件或图像的全局分辨率属性；重建渲染器保留当前设置，关闭后重新打开视窗则重新使用文件值。三轴同时乘同一倍数会改变物理尺寸和正交视图比例尺，自动适配后的外观比例不变。Marker 跟随相同比例，SWC/表面沿用“Stretch”开关；关闭 Stretch 时仍保留用户选择的不随图像拉伸行为。这里只调整显示，不重采样或改变标注坐标。此验证针对普通图像 3D 视窗，未验证 TeraFly 多分辨率切换工作流。
+真实 P209-T1-R1-S19-4color.tif 的输入是 1024 × 1024 × 28、4 通道 uint16，间距为 0.564542、0.564542、1.444444 µm；输出为 **578 × 578 × 40、4 通道 uint16，1 × 1 × 1 µm**。输入框不能先改为 1，否则意味着输入原本就是 1 µm，将按相同尺寸复制。
+
+任务提供进度和取消，同一视窗执行期间禁止重复启动；快照隔离源像素，关闭源 3D 视窗时取消并丢弃结果。仅支持单时间点，输入快照、输出及权重表估算合计超过 2 GiB 或单轴超过 100 万体素时拒绝并说明。计算完成后仍需用二维窗口的 Save/Save As 手动保存输出，功能本身不写磁盘；现有文件格式未统一保存物理标定，重开结果时应确认 XYZ 为 1 µm。SWC、Mask、Marker 不复制到新视窗，避免原坐标与新采样网格错位；该插值针对强度图像，不适用于离散分割标签。新视窗使用默认通道颜色，可再次在 Colormap 调整。
+
+TIFF 自动标定限尺寸匹配、单组 Pixels、SizeT=1 且完整有效的 OME PhysicalSizeX/Y/Z，按单位换算为 µm，省略单位时遵循 OME 默认 µm。不解析普通 TIFF/ImageJ、多系列或时间序列标定。已有标定显示仍按物理间距确定几何比例，旧插件 `setVoxelSpacing`/Z-thick 显示接口保留。右侧控件可滚动；Others 的“编辑 XYZ 分辨率”跳到输入框。普通图像 3D 视窗经过验证，TeraFly 多分辨率工作流未覆盖。
 
 完整构建后运行：
 
 ```bash
-mkdir -p /tmp/vaa3d-voxel-spacing-unit
-cd /tmp/vaa3d-voxel-spacing-unit
-/home/pzy/anaconda3/bin/qmake /home/pzy/pzy/Vaa3D/tests/tiff_voxel_spacing_test.pro CONFIG+=debug CONFIG-=release
-make -j4
-LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libstdc++.so.6 ./tiff_voxel_spacing_test
-cd /home/pzy/pzy/Vaa3D
-make -C v3d_main/v3d -f Makefile -f ../../tests/voxel_spacing_gui_test.mk voxel-spacing-gui-test
-XDG_CONFIG_HOME="$(mktemp -d /tmp/vaa3d-spacing-config-XXXXXX)" LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libstdc++.so.6 LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a -s '-screen 0 1800x1400x24' /tmp/vaa3d-voxel-spacing-gui
+g++ -std=c++11 -O2 -fsanitize=address,undefined -fno-omit-frame-pointer tests/rescale_one_micron_test.cpp -o /tmp/vaa3d-rescale-unit
+/tmp/vaa3d-rescale-unit
+make -C v3d_main/v3d -f Makefile -f ../../tests/rescale_one_micron_gui_test.mk rescale-one-micron-gui-test
+XDG_CONFIG_HOME="$(mktemp -d /tmp/vaa3d-rescale-config-XXXXXX)" LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libstdc++.so.6 LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a -s '-screen 0 1800x1400x24' /tmp/vaa3d-rescale-one-micron-gui
 ```
 
-两项测试均可附加上述真实 TIFF 路径。单元测试验证单位换算、缺失/非法/不匹配/歧义元数据拒绝；GUI 测试验证自动读值、修改后的 framebuffer 比例、分数/大比例、非法值拒绝、覆盖尺寸、裁剪原点下 Marker/Surface 变换一致、窗口独立性、渲染器重建、恢复、Enter 应用及图像内存 SHA256 不变。成功标记为 `TIFF_VOXEL_SPACING_PASS` 和 `VOXEL_SPACING_GUI_PASS`。
+GUI 测试可附加上述真实 TIFF 路径。单元回归验证三种位深的解析值、四通道、恒等映射、边界、取消和非法/超大尺寸；GUI 检查真实按钮、输出尺寸/位深/通道、1 µm 几何、源内存 SHA256 不变、取消、关闭源窗口及事件循环心跳。成功标记 `RESCALE_ONE_MICRON_PASS`、`RESCALE_GUI_PASS`。`voxel-spacing-gui-test` 保留几何标定接口回归，并检查编辑输入间距不再直接改变源图显示比例；`tests/tiff_voxel_spacing_test.pro` 保留 OME 解析回归。
+
+全尺寸合成回归可先用 `/home/pzy/anaconda3/bin/python tests/rescale_one_micron_reference.py generate /tmp/vaa3d-rescale-full-size.tif` 生成与原文件相同尺寸/间距/位深的测试 TIFF（拒绝覆盖既有文件），把该路径传给 GUI 测试。随后执行 `/home/pzy/anaconda3/bin/python tests/rescale_one_micron_reference.py verify /tmp/vaa3d-rescale-real.raw`，用独立 Python 参考计算验证全部四通道的边界和 1000 个随机输出体素。临时原始输出仅用于测试，不是用户数据。

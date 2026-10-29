@@ -48,6 +48,9 @@ Peng, H, Ruan, Z., Atasoy, D., and Sternson, S. (2010) Automatic reconstruction 
 #include "v3dr_surfaceDialog.h"
 #include "v3dr_colormapDialog.h"
 #include "../basic_c_fun/TiffVoxelSpacing.h"
+#include "../basic_c_fun/RescaleOneMicron.h"
+#include <QThread>
+#include <QProgressDialog>
 #include "v3dr_mainwindow.h"
 #include "../terafly/src/control/CPlugin.h"
 #include "../terafly/src/presentation/PMain.h"
@@ -1856,6 +1859,61 @@ bool V3dR_GLWidget::setVoxelSpacing(double x,double y,double z)
     return true;
 }
 
+void V3dR_GLWidget::rescaleOneMicron(double x,double y,double z)
+{
+    if (_rescaleRunning) return;
+    auto img=v3dr_getImage4d(_idep);
+    auto source=_idep?_idep->xwidget:nullptr;
+    if (!img || !img->getRawData() || !source || !source->getMainControlWindow()) return;
+    if (img->getTDim()>1 || img->getTimePackType()!=TIME_PACK_NONE) {
+        v3d_msg(tr("当前 Rescale 仅支持单时间点图像。"));return;
+    }
+    std::shared_ptr<micron::Job> job;
+    try {
+        auto p=micron::plan({{img->getXDim(),img->getYDim(),img->getZDim(),img->getCDim()}},{{x,y,z}},int(img->getDatatype()));
+        job=std::make_shared<micron::Job>(p);
+        job->input.reset(new unsigned char[p.inputBytes]);
+        memcpy(job->input.get(),img->getRawData(),p.inputBytes);
+    } catch (const std::exception &e) {
+        v3d_msg(tr("无法重采样：%1").arg(QString::fromUtf8(e.what())));return;
+    }
+    const QString name=QFileInfo(QString::fromLocal8Bit(img->getFileName())).fileName()+" [rescale 1um]";
+    QPointer<V3dR_GLWidget> self(this);
+    QPointer<MainWindow> main=source->getMainControlWindow();
+    QPointer<QProgressDialog> progress=new QProgressDialog(tr("正在重采样全部通道到 1 µm…"),tr("取消"),0,100,mainwindow);
+    progress->setObjectName("rescaleProgress");progress->setWindowModality(Qt::NonModal);
+    progress->setAutoClose(false);progress->setAutoReset(false);progress->setMinimumDuration(0);progress->show();
+    _rescaleRunning=true;
+    if(auto window=qobject_cast<V3dR_MainWindow*>(mainwindow))window->previewRescaleOutput();
+    auto timer=new QTimer(progress);timer->setInterval(100);
+    connect(timer,&QTimer::timeout,progress,[progress,job](){if(progress)progress->setValue(job->percent.load());});timer->start();
+    connect(progress,&QProgressDialog::canceled,this,[job](){job->cancel=true;});
+    std::weak_ptr<micron::Job> weakJob=job;
+    connect(this,&QObject::destroyed,qApp,[weakJob](){if(auto active=weakJob.lock())active->cancel=true;});
+    auto worker=QThread::create([job](){micron::run(*job);job->input.reset();});
+    connect(qApp,&QCoreApplication::aboutToQuit,worker,[worker,job](){job->cancel=true;worker->wait();});
+    connect(worker,&QThread::finished,qApp,[self,main,progress,job,name](){
+        if(progress){progress->blockSignals(true);progress->close();progress->deleteLater();}
+        if(!self)return;
+        self->_rescaleRunning=false;
+        if(auto window=qobject_cast<V3dR_MainWindow*>(self->mainwindow))window->previewRescaleOutput();
+        if(job->cancel || !main){emit self->rescaleFinished(false);return;}
+        if(!job->output){v3d_msg(QObject::tr("重采样失败：%1").arg(QString::fromStdString(job->error)));emit self->rescaleFinished(false);return;}
+        auto child=main->createMdiChild();
+        auto p=job->spec;
+        // newProcessedImage adopts valid pixel storage even if later GUI setup fails.
+        if(!child->newProcessedImage(name,job->output.release(),p.out[0],p.out[1],p.out[2],p.out[3],ImagePixelType(p.bytes))){
+            child->close();emit self->rescaleFinished(false);return;
+        }
+        child->getImageData()->setRezX(1);child->getImageData()->setRezY(1);child->getImageData()->setRezZ(1);
+        child->setProperty("rescaledOneMicron",true);
+        child->show();child->doImage3DView();
+        emit self->rescaleFinished(true);
+    });
+    connect(worker,&QThread::finished,worker,&QObject::deleteLater);
+    worker->start();
+}
+
 void V3dR_GLWidget::resetVoxelSpacing()
 {
     auto img=v3dr_getImage4d(_idep);
@@ -1867,7 +1925,8 @@ void V3dR_GLWidget::resetVoxelSpacing()
                                  img->getYDim(),img->getZDim(),img->getCDim(),fromFile);
     if (ome) for (int i=0;i<3;++i) values[i]=fromFile[i];
     if (!setVoxelSpacing(values[0],values[1],values[2])) return;
-    _voxelSpacingSource=ome?tr("来自 TIFF / OME 元数据"):
+    _voxelSpacingSource=(_idep && _idep->xwidget && _idep->xwidget->property("rescaledOneMicron").toBool())
+        ?tr("已重采样：1 × 1 × 1 µm") : ome?tr("来自 TIFF / OME 元数据"):
         ((values[0]==1 && values[1]==1 && values[2]==1)?tr("未提供分辨率：默认 1 µm，可修改"):tr("来自图像分辨率属性"));
     emit voxelSpacingChanged();
 }

@@ -81,6 +81,7 @@ public slots:
 	void setZCutLockIcon(bool);
 
 	void refreshVoxelSpacingControls();
+    void previewRescaleOutput();
 	void showVoxelSpacingControls();
 	void initControlValue(); // easy to edit, by RZC 080828, easy to reset 081122
 	void initVolumeTimeRange();
