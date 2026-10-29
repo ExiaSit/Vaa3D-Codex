@@ -78,6 +78,10 @@ int main(int argc,char **argv) {
     table(a,stLabelSurface)->item(0,0)->setCheckState(Qt::Unchecked);assert(!ra->listLabelSurf[0].on);
     assert(ra->listLabelSurf[1].on&&ra->listLabelSurf[2].on&&rb->listLabelSurf[0].on);
     table(a,stNeuronStructure)->item(0,0)->setCheckState(Qt::Unchecked);assert(!ra->listNeuronTree[0].on&&ra->listNeuronTree[1].on&&rb->listNeuronTree[0].on);
+    assert(openFileSet(&mw,{"--image",image,"--swc",swc,"--swc",eswc,"--mask",mask,"--mask",maskB},&error));
+    waitFor([&](){return a->property("fileSetState")=="complete";});
+    assert(ra->listNeuronTree.size()==2&&ra->listLabelSurf.size()==4);
+    assert(!ra->listNeuronTree[0].on&&!ra->listLabelSurf[0].on);
     // Verify queue stops on dimensions failure, retains existing objects, and no later mask starts.
     assert(openFileSet(&mw,{"--image",image,"--mask",wrong,"--mask",maskB,"--mesh-density","20"},&error));
     waitFor([&](){return a->property("fileSetState")=="failed";});
@@ -96,7 +100,11 @@ int main(int argc,char **argv) {
     // Closing a viewer while a set is active is safe and stops the rest of its queue.
     assert(openFileSet(&mw,{"--image",imageB,"--mask",maskB,"--mesh-density","500"},&error));
     waitFor([&](){return b->property("maskImportRunning").toBool();});
-    b->getMainWindow()->close();qApp->processEvents();
+    b->getMainWindow()->close();qApp->processEvents();QCoreApplication::sendPostedEvents(nullptr,QEvent::DeferredDelete);
+    assert(openFileSet(&mw,{"--image",imageB,"--swc",swc,"--mask",mask,"--mesh-density","25"},&error));
+    auto reopened=view(mw,imageB);
+    waitFor([&](){return reopened->property("fileSetState")=="complete";});
+    auto rr=dynamic_cast<Renderer_gl1*>(reopened->getRenderer());assert(rr&&rr->listNeuronTree.size()==1&&rr->listLabelSurf.size()==2);
     qInfo("FILE_SET_GUI_PASS: image/SWC/ESWC/multiple masks, TIFF/PBD, manager visibility/source isolation, failure/cancel/close, unchanged files");
     return 0;
 }

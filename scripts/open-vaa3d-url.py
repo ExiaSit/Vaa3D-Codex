@@ -1,11 +1,19 @@
 #!/usr/bin/env python3
 """Open a local file or image/SWC/mask set via vaa3d://open?... ."""
 import os
+import errno
+import fcntl
+import hashlib
+import json
 from pathlib import Path
 import re
 import shutil
 import subprocess
+import socket
+import stat
 import sys
+import time
+import uuid
 from urllib.parse import parse_qsl, urlsplit
 
 
@@ -86,15 +94,121 @@ def report_error(message):
                         '--text=' + message], check=False)
 
 
+def ipc_directory():
+    executable = str((LAUNCHER.parent.parent / 'bin/vaa3d').resolve())
+    session = os.environ.get('DISPLAY', '') + '|' + os.environ.get('WAYLAND_DISPLAY', '')
+    key = hashlib.sha256((executable + '\n' + session).encode('utf-8')).hexdigest()[:16]
+    base = os.environ.get('XDG_RUNTIME_DIR', '')
+    def private_dir(path):
+        try:
+            info = os.lstat(path)
+        except OSError:
+            return False
+        return stat.S_ISDIR(info.st_mode) and info.st_uid == os.getuid() and not info.st_mode & 0o077
+    if not base or not os.path.isabs(base) or not private_dir(base):
+        base = '/tmp'
+    folder = Path(base) / ('vaa3d-open-' + str(os.getuid()) + '-' + key)
+    try:
+        folder.mkdir(mode=0o700)
+    except FileExistsError:
+        pass
+    if not private_dir(folder):
+        raise ValueError('Vaa3D 本机通信目录权限无效：' + str(folder))
+    return folder
+
+
+def send_request(folder, payload):
+    # Most recently active compatible GUI instance wins. Never start another
+    # process after a connection succeeds but acknowledgement is uncertain.
+    endpoints = []
+    for endpoint in folder.glob('*.sock'):
+        try:
+            info = endpoint.stat()
+            if stat.S_ISSOCK(info.st_mode):
+                endpoints.append((info.st_mtime_ns, endpoint))
+        except FileNotFoundError:
+            continue
+    for _, endpoint in sorted(endpoints, reverse=True):
+        with socket.socket(socket.AF_UNIX) as connection:
+            connection.settimeout(10)
+            try:
+                connection.connect(str(endpoint))
+            except OSError as error:
+                if error.errno in (errno.ENOENT, errno.ECONNREFUSED):
+                    continue
+                raise
+            connection.sendall(payload)
+            response = b''
+            while b'\n' not in response:
+                part = connection.recv(4096)
+                if not part or len(response) > 16384:
+                    raise ValueError('Vaa3D 未确认请求；为避免重复打开，不会启动另一个程序。')
+                response += part
+            reply = json.loads(response.split(b'\n', 1)[0])
+            if reply.get('status') != 'accepted':
+                raise ValueError(reply.get('error', 'Vaa3D 拒绝了打开请求。'))
+            return True
+    return False
+
+
+def legacy_gui_running():
+    executable = str((LAUNCHER.parent.parent / 'bin/vaa3d').resolve())
+    for entry in Path('/proc').iterdir():
+        if not entry.name.isdigit():
+            continue
+        try:
+            if entry.stat().st_uid != os.getuid():
+                continue
+            actual = os.readlink(entry / 'exe').removesuffix(' (deleted)')
+            if actual != executable:
+                continue
+            args = (entry / 'cmdline').read_bytes().split(b'\0')
+            if any(option in args for option in (b'-cmd', b'-f', b'-h', b'--help')):
+                continue
+            env = dict(item.split(b'=', 1) for item in (entry / 'environ').read_bytes().split(b'\0') if b'=' in item)
+            if all(env.get(key.encode(), b'').decode() == os.environ.get(key, '')
+                   for key in ('DISPLAY', 'WAYLAND_DISPLAY')):
+                return True
+        except (OSError, ValueError):
+            continue
+    return False
+
+
+def deliver(arguments):
+    folder = ipc_directory()
+    payload = (json.dumps({'version': 1, 'id': uuid.uuid4().hex, 'args': arguments},
+                          ensure_ascii=False) + '\n').encode('utf-8')
+    if len(payload) > 1024 * 1024:
+        raise ValueError('文件组路径过长。')
+    # The lock covers startup and delivery, so simultaneous browser clicks do
+    # not launch a second GUI before the first has registered its receiver.
+    descriptor = os.open(folder / 'launch.lock', os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
+    with os.fdopen(descriptor, 'w') as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        if send_request(folder, payload):
+            return
+        if legacy_gui_running():
+            raise ValueError('检测到未提供链接接收接口的 Vaa3D。请保存工作后启动新版一次；为避免新开程序，本次未加载。')
+        process = subprocess.Popen([str(LAUNCHER)], start_new_session=True,
+                                   stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        deadline = time.monotonic() + 30
+        while time.monotonic() < deadline:
+            if send_request(folder, payload):
+                return
+            if process.poll() is not None:
+                raise ValueError('Vaa3D 启动失败，未收到本机接收接口。')
+            time.sleep(0.1)
+        raise ValueError('等待 Vaa3D 启动超时；不会重复启动，请检查程序窗口。')
+
+
 def main(argv=None):
     args = sys.argv[1:] if argv is None else argv
     try:
         if len(args) != 1:
             raise ValueError('需要一个 vaa3d://open?path=... 链接。')
         arguments = launch_arguments(args[0])
-        # Reuse the desktop launcher's runtime setup and normal -i loading.
-        # An absolute path cannot become a CLI option; execv never uses a shell.
-        os.execv(str(LAUNCHER), [str(LAUNCHER)] + arguments)
+        deliver(arguments)
+        return 0
     except (ValueError, OSError) as error:
         report_error(str(error))
         return 2

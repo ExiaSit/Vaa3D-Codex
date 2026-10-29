@@ -184,7 +184,7 @@ CONFIG += thread
 #CONFIG += console
 
 # Input
-HEADERS += OpenFileSet.h ../basic_c_fun/mg_utilities.h \
+HEADERS += ProtocolOpenService.h OpenFileSet.h ../basic_c_fun/mg_utilities.h \
     ../basic_c_fun/mg_image_lib.h \
     ../basic_c_fun/basic_memory.h \
     ../basic_c_fun/stackutil.h \
@@ -293,7 +293,7 @@ HEADERS += OpenFileSet.h ../basic_c_fun/mg_utilities.h \
 unix:HEADERS += ../basic_c_fun/imageio_mylib.h
 #macx:HEADERS += ../basic_c_fun/imageio_mylib.h
 
-SOURCES += OpenFileSet.cpp ../basic_c_fun/mg_utilities.cpp \
+SOURCES += ProtocolOpenService.cpp OpenFileSet.cpp ../basic_c_fun/mg_utilities.cpp \
     ../basic_c_fun/mg_image_lib.cpp \
     ../basic_c_fun/stackutil.cpp \
     ../basic_c_fun/basic_memory.cpp \

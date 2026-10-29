@@ -3,6 +3,7 @@
 import importlib.util
 import json
 import os
+import signal
 from pathlib import Path
 import shutil
 import subprocess
@@ -62,7 +63,7 @@ class ProtocolTest(unittest.TestCase):
             url(self.file) + '&plugin=anything', url(self.file) + '\n',
             url(self.work / 'missing.tif'), url(unsupported), url(directory),
         ]
-        with patch.object(handler.os, 'execv') as launch, patch.object(handler, 'report_error'):
+        with patch.object(handler, 'deliver') as launch, patch.object(handler, 'report_error'):
             for value in invalid:
                 with self.subTest(value=value):
                     self.assertEqual(handler.main([value]), 2)
@@ -91,10 +92,20 @@ class ProtocolTest(unittest.TestCase):
                  [('image',str(image)),('swc',str(mask))],
                  pairs+[('mask',str(self.work/'missing.tif'))]]
         invalid += [[('image',str(image)),('mesh_density',s)] for s in ('','0','1001','1.5','-1','NaN')]
-        with patch.object(handler.os,'execv') as launch,patch.object(handler,'report_error'):
+        with patch.object(handler,'deliver') as launch,patch.object(handler,'report_error'):
             for pairs in invalid:
                 with self.subTest(pairs=pairs):
                     self.assertEqual(handler.main(['vaa3d://open?'+urlencode(pairs)]),2)
+            launch.assert_not_called()
+
+    def test_existing_legacy_or_uncertain_delivery_does_not_start_another_gui(self):
+        with patch.object(handler,'ipc_directory',return_value=self.work),patch.object(handler,'send_request',return_value=False),\
+             patch.object(handler,'legacy_gui_running',return_value=True),patch.object(handler.subprocess,'Popen') as launch:
+            with self.assertRaises(ValueError):handler.deliver([str(self.file)])
+            launch.assert_not_called()
+        with patch.object(handler,'ipc_directory',return_value=self.work),patch.object(handler,'send_request',side_effect=TimeoutError('busy')),\
+             patch.object(handler.subprocess,'Popen') as launch:
+            with self.assertRaises(TimeoutError):handler.deliver([str(self.file)])
             launch.assert_not_called()
 
     def test_xdg_dispatch_preserves_one_literal_argument(self):
@@ -105,9 +116,28 @@ class ProtocolTest(unittest.TestCase):
         for script in ('install-desktop-integration.py', 'open-vaa3d-url.py', 'open-vaa3d.sh'):
             shutil.copy2(ROOT / 'scripts' / script, checkout / 'scripts' / script)
         fake = checkout / 'bin/vaa3d'
-        fake.write_text('#!/usr/bin/python3\nimport json, os, sys\n'
-                        'with open(os.environ["VAA3D_TEST_CAPTURE"], "w") as f:\n'
-                        '    json.dump(sys.argv[1:], f)\n')
+        fake.write_text('''#!/usr/bin/python3
+import importlib.util, json, os, signal, socket, sys
+from pathlib import Path
+sys.dont_write_bytecode=True
+script=Path(__file__).resolve().parents[1]/'scripts/open-vaa3d-url.py'
+spec=importlib.util.spec_from_file_location('handler',script)
+handler=importlib.util.module_from_spec(spec);spec.loader.exec_module(handler)
+endpoint=handler.ipc_directory()/(str(os.getpid())+'.sock')
+server=socket.socket(socket.AF_UNIX);server.bind(str(endpoint));server.listen()
+def cleanup(*args):
+    endpoint.unlink(missing_ok=True);sys.exit(0)
+signal.signal(signal.SIGTERM,cleanup)
+with open(os.environ['VAA3D_TEST_STARTED'],'a') as f:f.write(str(os.getpid())+'\\n')
+while True:
+    connection,_=server.accept()
+    with connection:
+        data=b''
+        while b'\\n' not in data:data+=connection.recv(4096)
+        request=json.loads(data.split(b'\\n')[0])
+        with open(os.environ['VAA3D_TEST_CAPTURE'],'w') as f:json.dump(request['args'],f)
+        connection.sendall((json.dumps({'status':'accepted','pid':os.getpid()})+'\\n').encode())
+''')
         fake.chmod(0o755)
         config, data = self.work / 'config', self.work / 'data'
         config.mkdir()
@@ -115,8 +145,16 @@ class ProtocolTest(unittest.TestCase):
         mimeapps = config / 'mimeapps.list'
         mimeapps.write_text('[Default Applications]\nimage/tiff=existing-viewer.desktop;\n')
         capture = self.work / 'captured.json'
+        started = self.work / 'started.txt'
+        runtime = self.work / 'runtime';runtime.mkdir(mode=0o700)
+        def stop_fake():
+            if started.exists():
+                for pid in started.read_text().splitlines():
+                    try:os.kill(int(pid),signal.SIGTERM)
+                    except ProcessLookupError:pass
+        self.addCleanup(stop_fake)
         env = dict(os.environ, XDG_CONFIG_HOME=str(config), XDG_DATA_HOME=str(data),
-                   VAA3D_TEST_CAPTURE=str(capture))
+                   XDG_RUNTIME_DIR=str(runtime), VAA3D_TEST_CAPTURE=str(capture),VAA3D_TEST_STARTED=str(started))
         subprocess.run([sys.executable, str(checkout / 'scripts/install-desktop-integration.py'),
                         '--protocol-only'], env=env, check=True)
         self.assertIn('image/tiff=existing-viewer.desktop;', mimeapps.read_text())
@@ -130,7 +168,7 @@ class ProtocolTest(unittest.TestCase):
         while not capture.exists() and time.monotonic() < deadline:
             time.sleep(0.05)
         self.assertTrue(capture.exists(), 'registered handler was not launched')
-        self.assertEqual(json.loads(capture.read_text()), ['-i', str(self.file)])
+        self.assertEqual(json.loads(capture.read_text()), [str(self.file)])
         capture.unlink()
         image=self.work/'43199 +原图.v3dpbd';image.touch()
         mask=self.work/'43199 +mask.tif';mask.touch()
@@ -140,6 +178,7 @@ class ProtocolTest(unittest.TestCase):
         while not capture.exists() and time.monotonic()<deadline:time.sleep(0.05)
         self.assertEqual(json.loads(capture.read_text()),['--open-set','--image',str(image),
                          '--swc',str(self.file),'--mask',str(mask),'--mesh-density','400'])
+        self.assertEqual(len(started.read_text().splitlines()),1,'second link launched another GUI')
         # The existing full installer must still register both TIFF types.
         subprocess.run([sys.executable, str(checkout / 'scripts/install-desktop-integration.py')],
                        env=env, check=True)

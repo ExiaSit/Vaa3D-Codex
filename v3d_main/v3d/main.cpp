@@ -59,6 +59,7 @@ Last update: 2011-08-25: remove some uncalled old code, and adjust the inconsist
 
 #include "mainwindow.h"
 #include "OpenFileSet.h"
+#include "ProtocolOpenService.h"
 #include "v3d_application.h"
 #include "customdebug.h"
 
@@ -127,6 +128,7 @@ int main(int argc, char **argv)
         Q_INIT_RESOURCE(v3d);
         auto app=V3dApplication::getInstance(argc,argv);
         auto window=app->getMainWindow();
+        auto protocolService=startProtocolOpenService(window);
         app->installEventFilter(window);app->activateMainWindow();
         QStringList arguments;
         for(int i=2;i<argc;++i)arguments<<QString::fromLocal8Bit(argv[i]);
@@ -134,7 +136,7 @@ int main(int argc, char **argv)
         if(!openFileSet(window,arguments,&error)) {
             QMessageBox::warning(window,QString::fromUtf8("无法打开文件组"),error);return 2;
         }
-        return app->exec();
+        protocolOpenServiceReady(protocolService);return app->exec();
     }
 
 	CLP parser;
@@ -166,6 +168,7 @@ int main(int argc, char **argv)
 				return false;
 			}
 
+            ProtocolOpenService *protocolService=parser.i_v3d.hideV3D?nullptr:startProtocolOpenService(mainWin);
             app->installEventFilter(mainWin);
 
             if (mainWin)
@@ -301,8 +304,10 @@ int main(int argc, char **argv)
 			// launch v3d
 			try
 			{
-                if(!parser.i_v3d.hideV3D)
+                if(!parser.i_v3d.hideV3D) {
+                    protocolOpenServiceReady(protocolService);
                     return app->exec();
+                }
                 else
                     return false;
 			}

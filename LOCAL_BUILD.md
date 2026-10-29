@@ -58,7 +58,11 @@ XDG_CONFIG_HOME="$(mktemp -d /tmp/yflip-config-XXXXXX)" LIBGL_ALWAYS_SOFTWARE=1 
 
 ## 网页通过 vaa3d 协议打开本机文件（Linux）
 
-当前维护版提供 `vaa3d://open?path=<URL 编码后的绝对路径>`。使用 Python 3 标准库校验参数，再调用现有 `open-vaa3d.sh`，以 `-i` 加载文件；每次打开新实例，图像遵循原有二维/自动三维偏好，SWC/ESWC 使用三维对象浏览器。现有实例无需退出，未保存标注不受影响。
+当前维护版提供 `vaa3d://open?path=<URL 编码后的绝对路径>`。Python 处理器校验参数后，通过本机 Unix socket 将请求交给已运行的新版 Vaa3D，在同一程序中打开相应图像/三维视窗；图像遵循原有二维/自动三维偏好，SWC/ESWC 使用三维对象浏览器。没有运行实例时才启动一个程序，连续点击链接共享启动锁，避免重复启动。已打开的图像和未保存标注保留。
+
+普通新版 GUI 启动和 `--open-set` 启动均注册接收接口；计算/插件无界面模式不注册。存在多个兼容 GUI 时，优先交给最近激活的实例。同一用户、显示会话和此可执行文件路径之间通信，不开放 TCP 端口。接收目录位于权限为 0700 的 `$XDG_RUNTIME_DIR/vaa3d-open-<uid>-<hash>`，运行目录无效时使用 `/tmp/vaa3d-open-<uid>-<hash>`；每个进程使用自己的 socket。正常关闭自动移除 socket，异常退出留下的失效 socket 在下次连接时跳过；`launch.lock` 不包含图像或标注。
+
+**升级注意：旧进程无法热更新为协议接收端。请先保存工作并关闭旧版，再启动新版一次。** 如果只有旧进程运行，链接处理器会提示升级，避免另开程序。连接到现有进程后若确认超时，也不会再启动其他进程。请求收到确认即进入队列，加载错误仍由现有窗口提示；初始加载、模态对话框及 Mask 队列结束后再处理后续请求。
 
 仅注册协议，不改变当前 TIFF 文件关联：
 
@@ -94,13 +98,15 @@ p.set('mesh_density', '400'); // 可省略，协议加载 Mask 时默认 400
 window.location.href = 'vaa3d://open?' + p.toString();
 ```
 
-一组只打开一个新 Vaa3D 实例、一个原图及其三维视窗，按原图 → 各 SWC → 各 Mask 的顺序导入；每个 Mask 在后台生成 Marching Cubes 标签表面并追加，不替换前一个。无需逐个确认 Mesh/VANO 选项，不读取 VANO 注释。完成后打开该视窗的 Object Manager：神经元在 Neuron/line Structure，Mask 的每个非零标签在 Label Surface，名称包含 Mask 文件名及标签值，源路径列保留完整来源，各行的显隐、颜色、Y flip 可分别控制。原图通过 Volume 控件管理。各窗口的队列和对象独立，手动导入仍保留原选项对话框。
+一组数据在现有程序中加载一个原图及其三维视窗，按原图 → 各 SWC → 各 Mask 的顺序导入；每个 Mask 在后台生成 Marching Cubes 标签表面并追加，不替换前一个。同一原图已打开时使用其视窗，三维视窗已关闭时重新打开；重复链接按来源路径复用已有 SWC/Mask 表面，保留显隐、颜色和编辑状态，不重复追加或重新生成。需要按新密度重新生成已加载的 Mask 时，请使用手动导入。无需逐个确认 Mesh/VANO 选项，不读取 VANO 注释。完成后打开该视窗的 Object Manager：神经元在 Neuron/line Structure，Mask 的每个非零标签在 Label Surface，名称包含文件名及标签值，源路径列保留完整来源，各行的显隐、颜色、Y flip 可分别控制。原图通过 Volume 控件管理。各窗口的队列和对象独立，手动导入仍保留原选项对话框。
 
 网页按所选 ID 显式提供这一组路径；程序不根据文件名猜测关联，不变换/重采样坐标，SWC/Mask 应与原图处于相同坐标系，Mask 三维尺寸必须相同。所有路径/角色先校验，缺失、重复（包含符号链接别名）或错误类型会在启动前拒绝；同一个文件不能兼作原图和 Mask。解析/加载内容失败、尺寸不符或取消某个 Mask 后停止余下队列并提示，之前加载成功的内容保留，文件组不会假报成功；关闭/重建目标三维视窗时取消队列。此模式只负责当前会话加载，不生成持久化工程文件。
 
 命令行也可调用 `scripts/open-vaa3d.sh --open-set --image /data/43199.tif --swc /data/43199_a.swc --mask /data/43199_mask.tif --mesh-density 100`，角色参数可重复（原图与密度除外）；路径必须是绝对路径，含空格时按 shell 规则加引号。直接命令行和手动导入的默认密度仍为 100；协议处理器会为未指定密度的 Mask 文件组补入 400。协议注册记录的脚本位置不变，已注册电脑完成构建即可使用新模式；无需关闭已有实例。大量路径需注意浏览器/操作系统对 URL 长度的限制。
 
 回归：`python3 tests/vaa3d_protocol_test.py`，测试在临时 XDG 目录中注册协议，以真实 `gio open` 调用模拟程序，验证特殊字符路径、Desktop Exec 引号、参数完整传递、非法链接拒绝及 TIFF 关联保持；不修改日常桌面配置。
+
+进程复用回归：完成构建后，执行 `xvfb-run -a -s '-screen 0 1600x1200x24' /home/pzy/anaconda3/bin/python tests/protocol_reuse_test.py`（需 numpy/tifffile）。在独立显示与临时配置中调用实际协议脚本和 GUI 程序，验证两个并发冷启动链接仅产生一个 GUI、单文件/整组重复链接保持同一 PID、实际原图/SWC/Mask/Object Manager 加载及无效指令拒绝；结束时只关闭测试进程。Python 回归还验证旧进程或确认超时时不启动另一程序。既有协议注册无需重新安装。
 
 整组 GUI 回归：常规构建后，执行 `make -C v3d_main/v3d -f Makefile -f ../../tests/file_set_gui_test.mk file-set-gui-test`，在临时 `XDG_CONFIG_HOME`、Xvfb、`LIBGL_ALWAYS_SOFTWARE=1`、`LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libstdc++.so.6` 下运行 `/tmp/vaa3d-file-set-gui`。测试使用合成数据，不修改用户数据。
 

@@ -79,6 +79,10 @@ class ImportQueue : public QObject {
         if(!renderer){finish("3D renderer is unavailable");return;}
         if(neuron<request.neurons.size()) {
             const QString file=request.neurons[neuron++];
+            for(const auto &tree:renderer->listNeuronTree)
+                if(!tree.listNeuron.isEmpty()&&QFileInfo(tree.file).canonicalFilePath()==QFileInfo(file).canonicalFilePath()) {
+                    QTimer::singleShot(0,this,[this](){next();});return;
+                }
             const int count=renderer->listNeuronTree.size();
             QPointer<ImportQueue> self=this;
             view->loadObjectFromFile(file);
@@ -92,6 +96,10 @@ class ImportQueue : public QObject {
         if(mask<request.masks.size()) {
             if(view->property("maskImportRunning").toBool()){finish("Another mask import is active");return;}
             activeMask=request.masks[mask++];
+            for(const auto &surface:renderer->listLabelSurf)
+                if(QFileInfo(surface.sourceFile).canonicalFilePath()==QFileInfo(activeMask).canonicalFilePath()) {
+                    activeMask.clear();QTimer::singleShot(0,this,[this](){next();});return;
+                }
             view->setProperty("fileSetMaskIndex",mask);
             renderer->loadTiffMaskAsync(activeMask,0,false,request.density);
             if(!view||!view->property("maskImportRunning").toBool())finish("Cannot start mask import");
@@ -124,6 +132,11 @@ public:
 };
 }
 
+bool validateFileSetArguments(const QStringList &arguments,QString *error)
+{
+    Request request;return parse(arguments,request,error);
+}
+
 bool openFileSet(MainWindow *window,const QStringList &arguments,QString *error)
 {
     Request request;
@@ -132,6 +145,11 @@ bool openFileSet(MainWindow *window,const QStringList &arguments,QString *error)
     window->loadV3DFile(request.image,true,true);
     if(!owner){if(error)*error="Main window closed during image load";return false;}
     auto child=window->findMdiChild(request.image);
+    if(child&&child->getImageData()&&!child->mypara_3Dview.window3D) {
+        // The explicit queue imports requested Masks without the remembered
+        // last-mask file reopening its interactive options dialog first.
+        child->mypara_3Dview.labelfield_file.clear();child->doImage3DView();
+    }
     if(!child||!child->getImageData()||!child->mypara_3Dview.window3D) {
         if(error)*error=QString::fromUtf8("原图加载失败或取消，未导入任何叠加对象。");return false;
     }
@@ -139,6 +157,7 @@ bool openFileSet(MainWindow *window,const QStringList &arguments,QString *error)
     if(!view || view->property("fileSetState").toString()=="waiting" || view->property("fileSetState").toString()=="loading") {
         if(error)*error="The viewer is unavailable or already loading a file set";return false;
     }
+    child->mypara_3Dview.window3D->raise_and_activate();
     new ImportQueue(view,request);
     return true;
 }
