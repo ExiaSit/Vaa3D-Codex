@@ -11,7 +11,7 @@ import tempfile
 import time
 import unittest
 from unittest.mock import patch
-from urllib.parse import quote
+from urllib.parse import quote, urlencode
 
 sys.dont_write_bytecode = True
 ROOT = Path(__file__).resolve().parents[1]
@@ -73,6 +73,30 @@ class ProtocolTest(unittest.TestCase):
             with self.assertRaises(ValueError):
                 handler.local_path(url(self.file))
 
+    def test_file_set_roles_and_atomic_validation(self):
+        image=self.work/'43199 原图.tif'
+        mask=self.work/'43199 mask.tiff'
+        other=self.work/'43199 重建.eswc'
+        for path in (image,mask,other):path.touch()
+        pairs=[('mask',str(mask)),('image',str(image)),('swc',str(self.file)),
+               ('swc',str(other)),('mesh_density','80')]
+        link='vaa3d://open?'+urlencode(pairs)
+        self.assertEqual(handler.launch_arguments(link),['--open-set','--mask',str(mask),
+                         '--image',str(image),'--swc',str(self.file),'--swc',str(other),'--mesh-density','80'])
+        alias=self.work/'alias.tif';alias.symlink_to(image)
+        invalid=[pairs+[('path',str(image))],pairs+[('image',str(mask))],
+                 pairs+[('mask',str(mask))],pairs+[('mask',str(alias))],
+                 [('swc',str(self.file))],pairs+[('mesh_density','30')],
+                 [('image',str(image)),('mask',str(self.file))],
+                 [('image',str(image)),('swc',str(mask))],
+                 pairs+[('mask',str(self.work/'missing.tif'))]]
+        invalid += [[('image',str(image)),('mesh_density',s)] for s in ('','0','1001','1.5','-1','NaN')]
+        with patch.object(handler.os,'execv') as launch,patch.object(handler,'report_error'):
+            for pairs in invalid:
+                with self.subTest(pairs=pairs):
+                    self.assertEqual(handler.main(['vaa3d://open?'+urlencode(pairs)]),2)
+            launch.assert_not_called()
+
     def test_xdg_dispatch_preserves_one_literal_argument(self):
         # Relocate the scripts to exercise Desktop Exec quoting, not just parsing.
         checkout = self.work / 'repo 空格 % $ ` " \\'
@@ -107,6 +131,15 @@ class ProtocolTest(unittest.TestCase):
             time.sleep(0.05)
         self.assertTrue(capture.exists(), 'registered handler was not launched')
         self.assertEqual(json.loads(capture.read_text()), ['-i', str(self.file)])
+        capture.unlink()
+        image=self.work/'43199 +原图.v3dpbd';image.touch()
+        mask=self.work/'43199 +mask.tif';mask.touch()
+        link='vaa3d://open?'+urlencode([('image',str(image)),('swc',str(self.file)),('mask',str(mask))])
+        subprocess.run(['gio','open',link],env=env,check=True)
+        deadline=time.monotonic()+10
+        while not capture.exists() and time.monotonic()<deadline:time.sleep(0.05)
+        self.assertEqual(json.loads(capture.read_text()),['--open-set','--image',str(image),
+                         '--swc',str(self.file),'--mask',str(mask)])
         # The existing full installer must still register both TIFF types.
         subprocess.run([sys.executable, str(checkout / 'scripts/install-desktop-integration.py')],
                        env=env, check=True)

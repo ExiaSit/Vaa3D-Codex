@@ -7,11 +7,30 @@
     <input id="path" size="80" value="/home/pzy/100310.swc">
   </label>
   <button id="open" type="button">在 Vaa3D 中查看</button>
+  <fieldset>
+    <legend>一次打开同一 ID 的一组数据</legend>
+    <p><label>原图：<input id="image" size="80" value="/data/43199.tif"></label></p>
+    <p><label>SWC / ESWC（每行一个绝对路径）：<br><textarea id="swcs" rows="3" cols="80"></textarea></label></p>
+    <p><label>TIFF Mask（每行一个绝对路径）：<br><textarea id="masks" rows="3" cols="80"></textarea></label></p>
+    <p><label>Mask mesh density：<input id="density" type="number" min="1" max="1000" value="100"></label></p>
+    <button id="open-set" type="button">在同一个 Vaa3D 视窗中打开整组</button>
+  </fieldset>
   <p>请先在运行浏览器的电脑注册 vaa3d 协议，文件必须能从该电脑访问。</p>
   <script>
     document.getElementById('open').addEventListener('click', () => {
       const path = document.getElementById('path').value;
       window.location.href = 'vaa3d://open?path=' + encodeURIComponent(path);
+    });
+    document.getElementById('open-set').addEventListener('click', () => {
+      const params = new URLSearchParams();
+      params.set('image', document.getElementById('image').value);
+      for (const [element, role] of [['swcs', 'swc'], ['masks', 'mask']]) {
+        for (const path of document.getElementById(element).value.split(/\r?\n/)) {
+          if (path.length > 0) params.append(role, path);
+        }
+      }
+      params.set('mesh_density', document.getElementById('density').value);
+      window.location.href = 'vaa3d://open?' + params.toString();
     });
   </script>
 </body>

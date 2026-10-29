@@ -457,6 +457,8 @@ public slots:
 //----------------------------------------------------------------------------------------
 
 signals:
+    void viewerReady();
+    void maskImportFinished(const QString &path, bool success, const QString &error);
     void rendererAboutToBeDeleted();
 // most of format: change***(type)
 // most of format: changeEnable***(bool)

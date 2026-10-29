@@ -892,7 +892,7 @@ public:
 
 	void loadLabelfieldSurf(const QString& filename, int ch=0);
 	void constructLabelfieldSurf(int mesh_method, int mesh_density);
-	void loadTiffMaskAsync(const QString &filename, int ch);
+    void loadTiffMaskAsync(const QString &filename, int ch, bool interactive=true, int density=100);
 	void compileLabelfieldSurf(int update=0);  					// makeCurrent
 	virtual void drawLabelfieldSurf();
 	void cleanLabelfieldSurf();
@@ -1009,5 +1009,4 @@ void _copyYzxFromZyx(RGBA8* rgbaYzx, RGBA8* rgbaZyx, int imageX, int imageY, int
 
 
 #endif
-
 

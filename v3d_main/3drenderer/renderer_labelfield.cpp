@@ -307,6 +307,7 @@ float _labelSampleFunc(float fX, float fY, float fZ)
 
 struct MaskMeshOptions
 {
+    V3DLONG expectedX=0,expectedY=0,expectedZ=0;
     int type=0,method=0,density=100,low=0,high=65535,channel=0;
     bool replace=false;
     QString annotation;
@@ -342,6 +343,8 @@ protected:
     {
         MaskTiffVolume volume;volume.read(path,options.channel,cancel,progress);
         if(cancel.load())return;
+        if(options.expectedX && (volume.x!=options.expectedX || volume.y!=options.expectedY || volume.z!=options.expectedZ))
+            throw std::runtime_error("Mask dimensions do not match the original image; remaining set imports stopped");
         lf_sz0=volume.x;lf_sz1=volume.y;lf_sz2=volume.z;lf_sz3=1;
         lf_mask=volume.bytes==1?0xff:volume.bytes==2?0xffff:0xffffffff;
         lf_data_ch=volume.data.data();
@@ -408,10 +411,12 @@ protected:
     }
 };
 
-void Renderer_gl1::loadTiffMaskAsync(const QString &filename,int ch)
+void Renderer_gl1::loadTiffMaskAsync(const QString &filename,int ch,bool interactive,int meshDensity)
 {
     QPointer<V3dR_GLWidget> view=qobject_cast<V3dR_GLWidget*>(static_cast<QWidget*>(widget));
     if(!view || view->property("maskImportRunning").toBool())return;
+    MaskMeshOptions options;options.channel=ch;options.density=qBound(1,meshDensity,1000);
+    if(interactive) {
     QDialog dialog(view->getMainWindow());dialog.setWindowTitle(QString::fromUtf8("导入 Mask"));
     dialog.setObjectName("maskImportOptions");dialog.setWindowModality(Qt::WindowModal);
     QFormLayout layout(&dialog);
@@ -435,9 +440,13 @@ void Renderer_gl1::loadTiffMaskAsync(const QString &filename,int ch)
     QObject::connect(&buttons,&QDialogButtonBox::accepted,&dialog,&QDialog::accept);
     QObject::connect(&buttons,&QDialogButtonBox::rejected,&dialog,&QDialog::reject);
     if(dialog.exec()!=QDialog::Accepted || !view)return;
-    MaskMeshOptions options;options.type=type.currentIndex();options.method=method.currentIndex();options.density=density.value();
+    options.type=type.currentIndex();options.method=method.currentIndex();options.density=density.value();
     options.low=low.value();options.high=high.value();options.replace=replace.isChecked();options.channel=ch;options.annotation=annotation.text();
     if(options.low>options.high){QMessageBox::warning(view->getMainWindow(),"Mask",QString::fromUtf8("范围下限不能大于上限。"));return;}
+    } else if(_idep) {
+        auto image=static_cast<iDrawExternalParameter*>(_idep)->image4d;
+        if(image){options.expectedX=image->getXDim();options.expectedY=image->getYDim();options.expectedZ=image->getZDim();}
+    }
     auto job=new MaskSurfaceJob(filename,options);
     view->setProperty("maskImportRunning",true);
     QPointer<QProgressDialog> progress=new QProgressDialog(QString::fromUtf8("正在读取 Mask…"),QString::fromUtf8("取消"),0,100,view->getMainWindow());
@@ -457,7 +466,7 @@ void Renderer_gl1::loadTiffMaskAsync(const QString &filename,int ch)
     QObject::connect(progress,&QObject::destroyed,job,[job](){job->cancel=true;});
     QObject::connect(qApp,&QCoreApplication::aboutToQuit,job,[job](){job->cancel=true;job->releaseResults.release();job->wait();});
     auto timer=new QTimer(job);timer->setInterval(40);
-    QObject::connect(timer,&QTimer::timeout,job,[this,view,job,progress,timer,upload,clearGpu](){
+    QObject::connect(timer,&QTimer::timeout,job,[this,view,job,progress,timer,upload,clearGpu,interactive](){
         if(!job->ready.load())
         {
             if(progress){progress->setValue(job->progress.load());
@@ -470,9 +479,11 @@ void Renderer_gl1::loadTiffMaskAsync(const QString &filename,int ch)
         {
             clearGpu();timer->stop();if(view)view->setProperty("maskImportRunning",false);
             if(progress){QObject::disconnect(progress,0,job,0);progress->deleteLater();}
-            if(view&&!job->cancel&&!job->error.isEmpty())
+            if(interactive&&view&&!job->cancel&&!job->error.isEmpty())
             {auto message=new QMessageBox(QMessageBox::Warning,"Mask",job->error,QMessageBox::Ok,view->getMainWindow());message->setAttribute(Qt::WA_DeleteOnClose);message->setWindowModality(Qt::WindowModal);message->open();}
-            job->releaseResults.release();return;
+            job->releaseResults.release();
+            if(view)emit view->maskImportFinished(job->path,false,job->cancel?QString::fromUtf8("Mask 导入已取消。"):job->error);
+            return;
         }
         if(progress){progress->setLabelText(QString::fromUtf8("正在上传表面…"));progress->setValue(90+int(9*upload->group/qMax(1,job->labels.size())));}
         timer->setInterval(1);view->makeCurrent();
@@ -503,6 +514,7 @@ void Renderer_gl1::loadTiffMaskAsync(const QString &filename,int ch)
         QList<Triangle*> retired;
         if(job->options.replace){retired.swap(list_listTriangle);cleanLabelfieldSurf();}
         for(auto label:job->labels){label.n=listLabelSurf.size()+1;label.color=random_rgba8(255);
+            if(!interactive&&label.name.isEmpty())label.name=QFileInfo(job->path).completeBaseName()+QString(" [%1]").arg(label.label);
             label.sourceFile=job->path;listLabelSurf<<label;}
         list_listTriangle+=job->triangles;job->triangles=retired;
         list_glistLabel+=upload->parents;maskChunkLists+=upload->chunks;upload->parents.clear();upload->chunks.clear();
@@ -513,6 +525,7 @@ void Renderer_gl1::loadTiffMaskAsync(const QString &filename,int ch)
         view->setProperty("maskImportRunning",false);timer->stop();
         if(progress){QObject::disconnect(progress,0,job,0);progress->deleteLater();}
         job->releaseResults.release();
+        emit view->maskImportFinished(job->path,true,QString());
     });
     QObject::connect(job,&QThread::finished,job,&QObject::deleteLater);
     timer->start();job->start();
@@ -1594,4 +1607,3 @@ void Renderer_gl1::loadV3DSFile(const QString& filename)
     updateBoundingBox(); // all of loaded bounding-box are updated here
 
 }
-

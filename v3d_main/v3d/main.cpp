@@ -58,6 +58,7 @@ Last update: 2011-08-25: remove some uncalled old code, and adjust the inconsist
 #include <vector>
 
 #include "mainwindow.h"
+#include "OpenFileSet.h"
 #include "v3d_application.h"
 #include "customdebug.h"
 
@@ -83,6 +84,7 @@ void printHelp_v3d()
 	cout<<endl<<"Usage: v3d -h -M moduleCode [all other options specific to different modules]"<<endl;
 
 	cout<<"    -h/H         help information."<<endl;
+    cout<<"    --open-set --image <absolute path> [--swc <path>]... [--mask <TIFF path>]... [--mesh-density <1..1000>]  open overlays in one 3D viewer"<<endl;
 
 	cout<<"    -i <file>                    open single or multiple image (.tif/.tiff, .lsm, .mrc, .raw/.v3draw) / object (.ano, .apo, .swc, .marker) files"<<endl;
     cout<<"    -o <file>                    indicates single or multiple outputs"<<endl;
@@ -120,6 +122,20 @@ int main(int argc, char **argv)
 
 
 #ifdef COMPILE_TO_COMMANDLINE
+
+    if(argc>1 && QString::fromLocal8Bit(argv[1])=="--open-set") {
+        Q_INIT_RESOURCE(v3d);
+        auto app=V3dApplication::getInstance(argc,argv);
+        auto window=app->getMainWindow();
+        app->installEventFilter(window);app->activateMainWindow();
+        QStringList arguments;
+        for(int i=2;i<argc;++i)arguments<<QString::fromLocal8Bit(argv[i]);
+        QString error;
+        if(!openFileSet(window,arguments,&error)) {
+            QMessageBox::warning(window,QString::fromUtf8("无法打开文件组"),error);return 2;
+        }
+        return app->exec();
+    }
 
 	CLP parser;
 

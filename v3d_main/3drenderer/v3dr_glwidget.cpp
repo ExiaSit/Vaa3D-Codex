@@ -206,6 +206,7 @@ V3dR_GLWidget::V3dR_GLWidget(iDrawExternalParameter* idep, QWidget* mainWindow, 
 //////////////////////////////////////////////////////
 void V3dR_GLWidget::deleteRenderer()
 {
+    setProperty("viewerReady", false);
     emit rendererAboutToBeDeleted();
     // Close the view's manager before freeing the renderer its table handlers access.
     // This also handles renderer replacement, not just closing the window.
@@ -522,6 +523,8 @@ void V3dR_GLWidget::customEvent(QEvent* e)
 			emit signalOnlySurfaceObj(); // V3dR_MainWindow->onlySurfaceObjTab
 		}
 		qDebug("-------------------------------------------------------------- Ready");
+		setProperty("viewerReady", true);
+		emit viewerReady();
 		break;
 
 	}
@@ -4492,5 +4495,3 @@ void V3dR_GLWidget::UpdateVRcollaInfo()
 ///////////////////////////////////////////////////////////////////////////////////////////
 #define __end_view3dcontrol_interface__
 ///////////////////////////////////////////////////////////////////////////////////////////
-
-

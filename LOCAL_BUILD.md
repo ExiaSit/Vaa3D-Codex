@@ -79,9 +79,30 @@ button.addEventListener('click', () => {
 });
 ```
 
-`absolutePath` 是**运行浏览器的电脑上**可读文件的绝对路径，例如 `/data/disk/example.tif`；共享目录须先在该电脑挂载到对应路径，服务器独有路径不能直接访问。浏览器通常会先询问是否允许打开 Vaa3D，用户允许后启动，无需网页读取文件内容或运行本地服务。本协议不下载 HTTP 文件、不执行插件或脚本，也不接受相对路径、重复/额外参数；仅接受 SWC、ESWC、TIF、TIFF、V3DPBD（扩展名不区分大小写）。文件格式内容仍由 Vaa3D 加载器检查。路径必须整体用 `encodeURIComponent` 编码一次，空格、中文、`+`、`#`、`&`、`%` 均可保留。
+`absolutePath` 是**运行浏览器的电脑上**可读文件的绝对路径，例如 `/data/disk/example.tif`；共享目录须先在该电脑挂载到对应路径，服务器独有路径不能直接访问。浏览器通常会先询问是否允许打开 Vaa3D，用户允许后启动，无需网页读取文件内容或运行本地服务。本协议不下载 HTTP 文件、不执行插件或脚本，也不接受相对路径或未知参数；单文件模式的 `path` 只能出现一次。仅接受 SWC、ESWC、TIF、TIFF、V3DPBD（扩展名不区分大小写）。文件格式内容仍由 Vaa3D 加载器检查。路径必须整体用 `encodeURIComponent` 编码一次，空格、中文、`+`、`#`、`&`、`%` 均可保留。
+
+### 一次打开原图、多个神经元和多个 Mask
+
+使用同一个协议地址，改传一个 `image`，以及可重复的 `swc` / `mask` 参数；不能与单文件 `path` 混用。原图支持 TIFF/V3DPBD，神经元支持 SWC/ESWC，Mask 支持 TIFF 标签图（0 为背景，通道 0）。`mesh_density` 可选，范围 1–1000，默认 100。网页示例已提供整组表单：
+
+```javascript
+const p = new URLSearchParams();
+p.set('image', '/data/43199.tif');
+for (const path of ['/data/43199_a.swc', '/data/43199_b.eswc']) p.append('swc', path);
+for (const path of ['/data/43199_mask_a.tif', '/data/43199_mask_b.tif']) p.append('mask', path);
+p.set('mesh_density', '100');
+window.location.href = 'vaa3d://open?' + p.toString();
+```
+
+一组只打开一个新 Vaa3D 实例、一个原图及其三维视窗，按原图 → 各 SWC → 各 Mask 的顺序导入；每个 Mask 在后台生成 Marching Cubes 标签表面并追加，不替换前一个。无需逐个确认 Mesh/VANO 选项，不读取 VANO 注释。完成后打开该视窗的 Object Manager：神经元在 Neuron/line Structure，Mask 的每个非零标签在 Label Surface，名称包含 Mask 文件名及标签值，源路径列保留完整来源，各行的显隐、颜色、Y flip 可分别控制。原图通过 Volume 控件管理。各窗口的队列和对象独立，手动导入仍保留原选项对话框。
+
+网页按所选 ID 显式提供这一组路径；程序不根据文件名猜测关联，不变换/重采样坐标，SWC/Mask 应与原图处于相同坐标系，Mask 三维尺寸必须相同。所有路径/角色先校验，缺失、重复（包含符号链接别名）或错误类型会在启动前拒绝；同一个文件不能兼作原图和 Mask。解析/加载内容失败、尺寸不符或取消某个 Mask 后停止余下队列并提示，之前加载成功的内容保留，文件组不会假报成功；关闭/重建目标三维视窗时取消队列。此模式只负责当前会话加载，不生成持久化工程文件。
+
+命令行也可调用 `scripts/open-vaa3d.sh --open-set --image /data/43199.tif --swc /data/43199_a.swc --mask /data/43199_mask.tif --mesh-density 100`，角色参数可重复（原图与密度除外）；路径必须是绝对路径，含空格时按 shell 规则加引号。协议注册记录的脚本位置不变，已注册电脑完成构建即可使用新模式；无需关闭已有实例。大量路径需注意浏览器/操作系统对 URL 长度的限制。
 
 回归：`python3 tests/vaa3d_protocol_test.py`，测试在临时 XDG 目录中注册协议，以真实 `gio open` 调用模拟程序，验证特殊字符路径、Desktop Exec 引号、参数完整传递、非法链接拒绝及 TIFF 关联保持；不修改日常桌面配置。
+
+整组 GUI 回归：常规构建后，执行 `make -C v3d_main/v3d -f Makefile -f ../../tests/file_set_gui_test.mk file-set-gui-test`，在临时 `XDG_CONFIG_HOME`、Xvfb、`LIBGL_ALWAYS_SOFTWARE=1`、`LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libstdc++.so.6` 下运行 `/tmp/vaa3d-file-set-gui`。测试使用合成数据，不修改用户数据。
 
 卸载协议：删除上述 `vaa3d-protocol.desktop`，在 `$XDG_CONFIG_HOME/mimeapps.list`（默认 `~/.config/mimeapps.list`）中仅移除值为 `vaa3d-protocol.desktop` 的 `x-scheme-handler/vaa3d` 项，保留其他配置，然后对相应 applications 目录运行 `update-desktop-database`。如安装前已有其他处理程序，请先记录 `xdg-mime query default x-scheme-handler/vaa3d`，卸载时用 `xdg-mime default 原处理程序.desktop x-scheme-handler/vaa3d` 恢复。此功能只配置 Linux 桌面；Windows/macOS 尚无注册脚本。
 
