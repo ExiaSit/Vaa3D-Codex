@@ -51,6 +51,7 @@ Peng, H, Ruan, Z., Atasoy, D., and Sternson, S. (2010) Automatic reconstruction 
 #define V3D_RENDERER_TEX2_H
 
 #include "../basic_c_fun/ObjectDisplayTransform.h"
+#include "LocalVolumeHide.h"
 #include "renderer.h"
 #include "marchingcubes.h"
 #include <time.h>
@@ -85,6 +86,13 @@ class Renderer_gl1 : public Renderer
 	friend class V3dr_colormapDialog;
 
 public:
+    std::vector<LocalHideBox> localHiddenBoxes;
+    LocalHideBox localHidePreview;
+    bool localHidePreviewValid=false;
+    bool locateLocalHideBox(int x,int y,int radius);
+    void drawLocalHidePreview();
+    void emitLocalHideQuad(const LocalHidePolygon &quad,bool texture3D);
+
     bool reconnectSphereVisible = false;
     XYZ reconnectSphereCenter, reconnectSphereRadii;
 
