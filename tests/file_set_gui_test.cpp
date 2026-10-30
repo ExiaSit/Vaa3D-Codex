@@ -71,6 +71,9 @@ int main(int argc,char **argv) {
     waitFor([&](){return a->property("fileSetState")=="complete"&&b->property("fileSetState")=="complete";});heartbeat.stop();assert(beats>0);
     auto ra=dynamic_cast<Renderer_gl1*>(a->getRenderer());auto rb=dynamic_cast<Renderer_gl1*>(b->getRenderer());assert(ra&&rb);
     assert(ra->listNeuronTree.size()==2&&rb->listNeuronTree.size()==1);
+    auto colorA=ra->listNeuronTree[0].color,colorB=ra->listNeuronTree[1].color;
+    assert(colorA.a==255&&colorB.a==255&&(colorA.r!=colorB.r||colorA.g!=colorB.g||colorA.b!=colorB.b));
+    assert(rb->listNeuronTree[0].color.a==0); // Single-file loading keeps its prior default.
     assert(ra->listLabelSurf.size()==4&&rb->listLabelSurf.size()==2);
     for(int i=0;i<4;++i){assert(ra->listLabelSurf[i].sourceFile==(i<2?mask:maskB));assert(!ra->listLabelSurf[i].name.isEmpty());}
     assert(table(a,stNeuronStructure)->rowCount()==2&&table(a,stLabelSurface)->rowCount()==4);
@@ -82,6 +85,7 @@ int main(int argc,char **argv) {
     waitFor([&](){return a->property("fileSetState")=="complete";});
     assert(ra->listNeuronTree.size()==2&&ra->listLabelSurf.size()==4);
     assert(!ra->listNeuronTree[0].on&&!ra->listLabelSurf[0].on);
+    assert(ra->listNeuronTree[0].color.i==colorA.i&&ra->listNeuronTree[1].color.i==colorB.i);
     // Verify queue stops on dimensions failure, retains existing objects, and no later mask starts.
     assert(openFileSet(&mw,{"--image",image,"--mask",wrong,"--mask",maskB,"--mesh-density","20"},&error));
     waitFor([&](){return a->property("fileSetState")=="failed";});

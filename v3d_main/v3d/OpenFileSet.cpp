@@ -91,6 +91,7 @@ class ImportQueue : public QObject {
             if(renderer->listNeuronTree.size()!=count+1 || renderer->listNeuronTree.last().listNeuron.isEmpty()) {
                 finish(QString::fromUtf8("无法加载神经元：\n")+file);return;
             }
+            if(request.neurons.size()>1)renderer->assignDistinctNeuronColors(count);
             QTimer::singleShot(0,this,[this](){next();});return;
         }
         if(mask<request.masks.size()) {

@@ -39,26 +39,39 @@ static int pixels(const QImage &image,int channel)
     }
     return n;
 }
+static int matching(const QImage &image,RGBA8 color)
+{
+    int n=0;for(int y=0;y<image.height();++y)for(int x=0;x<image.width();++x){auto c=image.pixelColor(x,y);
+        if(std::abs(c.red()-color.r)<25&&std::abs(c.green()-color.g)<25&&std::abs(c.blue()-color.b)<25)++n;}
+    return n;
+}
 
 int main(int argc,char **argv)
 {
     Q_INIT_RESOURCE(v3d);auto &app=*V3dApplication::getInstance(argc,argv);auto &mw=*app.getMainWindow();mw.show();
     QTemporaryDir dir;assert(dir.isValid());QStringList files;
-    for(int i=0;i<2;++i){QString path=dir.path()+QString("/neuron%1.swc").arg(i);QFile f(path);assert(f.open(QIODevice::WriteOnly));
+    for(int i=0;i<2;++i){QString path=dir.path()+QString("/neuron%1.").arg(i)+(i?"eswc":"swc");QFile f(path);assert(f.open(QIODevice::WriteOnly));
         f.write(QString("1 2 4 %1 12 1 -1\n2 2 16 %1 12 1 1\n3 3 28 %1 12 1 2\n").arg(i?23:6).toUtf8());f.close();files<<path;}
-    mw.loadV3DFile(files[0],false,false);
+    QString ano=dir.path()+"/batch.ano";{QFile f(ano);assert(f.open(QIODevice::WriteOnly));for(auto path:files)f.write(("SWCFILE="+path+"\n").toUtf8());}
+    mw.loadV3DFile(ano,false,false);
     QTimer::singleShot(500,&app,[&](){
-        auto window=mw.find3DViewer(files[0]);assert(window);auto gl=window->getGLWidget();gl->loadObjectFromFile(files[1]);
+        auto window=mw.find3DViewer(ano);assert(window);auto gl=window->getGLWidget();
         auto r=dynamic_cast<Renderer_gl1*>(gl->getRenderer());assert(r&&r->listNeuronTree.size()==2);
-        assert(r->listNeuronTree[0].color.a==0&&r->listNeuronTree[1].color.a==0);
+        auto color0=r->listNeuronTree[0].color,color1=r->listNeuronTree[1].color;
+        assert(color0.a==255&&color1.a==255&&color0.i!=color1.i);
         r->bShowAxes=false;r->bShowBoundingBox=false;r->bShowBoundingBox2=false;
         r->lineWidth=6;r->rootSize=8;r->nodeSize=6;gl->surfaceSelectDialog(stNeuronStructure-1);settle();
         auto d=window->findChild<V3dr_surfaceDialog*>();assert(d&&neurons(d)->rowCount()==2);
+        r->listNeuronTree[0].linemode=r->listNeuronTree[1].linemode=1;gl->update();settle();
+        auto automatic=gl->grabFramebuffer();assert(matching(automatic,color0)>30&&matching(automatic,color1)>30);
+        for(int i=0;i<2;++i){auto c=neurons(d)->item(i,1)->data(0).value<QColor>();auto expected=r->listNeuronTree[i].color;
+            assert(c.red()==expected.r&&c.green()==expected.g&&c.blue()==expected.b);}
+        automatic.save("/tmp/vaa3d-swc-batch-colors.png");
         for(int mode:{1,0}){
             r->listNeuronTree[0].linemode=mode;r->listNeuronTree[1].linemode=mode;r->neuronColorMode=0;
             answerColor(QColor(0,255,0));QMetaObject::invokeMethod(d,"doubleClickHandler",Qt::DirectConnection,Q_ARG(int,0),Q_ARG(int,1));settle();
             assert(r->listNeuronTree[0].color.g==255&&r->listNeuronTree[0].color.a==255);
-            if(mode==1)assert(r->listNeuronTree[1].color.a==0);
+            if(mode==1)assert(r->listNeuronTree[1].color.i==color1.i);
             answerColor(QColor(0,0,255));QMetaObject::invokeMethod(d,"doubleClickHandler",Qt::DirectConnection,Q_ARG(int,1),Q_ARG(int,1));settle();
             auto frame=gl->grabFramebuffer();assert(pixels(frame,1)>30&&pixels(frame,2)>30);
             if(mode==0)frame.save("/tmp/vaa3d-swc-custom-colors.png");
@@ -72,6 +85,6 @@ int main(int argc,char **argv)
             assert(r->listNeuronTree[0].color.a==map&&r->listNeuronTree[1].color.a==255);}
         auto table=neurons(d);table->clearSelection();table->selectRow(0);answerColor(QColor(255,0,0));
         QMetaObject::invokeMethod(d,"selectedColor",Qt::DirectConnection,Q_ARG(int,0));settle();assert(r->listNeuronTree[0].color.r==255&&r->listNeuronTree[0].color.a==255);
-        qInfo("SWC_COLOR_GUI_PASS: two imported SWCs, real color dialog, line/tube pixels, per-object independence, global palettes, cancel, automatic modes and batch color");app.quit();
+        qInfo("SWC_COLOR_GUI_PASS: ANO SWC/ESWC batch auto colors and framebuffer/manager agreement, real color dialog, line/tube pixels, per-object independence, global palettes, cancel and automatic modes");app.quit();
     });QTimer::singleShot(30000,&app,[](){qFatal("SWC color test timeout");});return app.exec();
 }

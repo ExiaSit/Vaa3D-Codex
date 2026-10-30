@@ -664,12 +664,14 @@ void Renderer_gl1::loadObjectListFromFile()
     // Added by Peng Xie, 06-05-2019
     qsl << ep->marker_file;
 #endif
+    const int firstNew=listNeuronTree.size();
 	((QWidget*)widget)->hide(); //101024 to avoid busy updateGL
 	foreach (QString filename, qsl)
 	{
 	    if (filename.size()>0)
 	    	loadObjectFilename(filename);
 	}
+    if(listNeuronTree.size()-firstNew>1)assignDistinctNeuronColors(firstNew);
 	((QWidget*)widget)->show();
 }
 void Renderer_gl1::loadObjectFilename(const QString& filename)
@@ -1555,6 +1557,40 @@ void Renderer_gl1::saveNeuronTree(int kk, const QString& filename) //kk is the c
     writeESWC_file(filename, listNeuronTree[kk]); //save eswc format instead of swc format by ZZ, 02282019
 #endif
 }
+void Renderer_gl1::assignDistinctNeuronColors(int firstNew)
+{
+    if(firstNew<0||firstNew>=listNeuronTree.size())return;
+    // Bright fixed colors are shared by Object Manager and every draw mode.
+    // Existing objects (including manual colors) are never recolored.
+    const int palette[][3]={{255,64,64},{64,224,96},{64,160,255},{255,210,32},
+        {240,80,230},{32,220,230},{255,140,32},{165,110,255},
+        {160,240,64},{255,150,190},{80,230,175},{145,190,255}};
+    QList<QColor> used;
+    for(int i=0;i<firstNew;++i)if(listNeuronTree[i].color.a>2) {
+        auto c=listNeuronTree[i].color;used<<QColor(c.r,c.g,c.b);
+    }
+    for(int row=firstNew;row<listNeuronTree.size();++row) {
+        QColor best;int bestScore=-1;
+        for(int candidate=0;candidate<268;++candidate) {
+            QColor color=candidate<12?QColor(palette[candidate][0],palette[candidate][1],palette[candidate][2])
+                :QColor::fromHsv(int((candidate-12)*137.507764)%360,200,255);
+            int nearest=3*255*255+1;
+            for(auto old:used){int dr=color.red()-old.red(),dg=color.green()-old.green(),db=color.blue()-old.blue();
+                nearest=qMin(nearest,dr*dr+dg*dg+db*db);}
+            if(nearest>bestScore){bestScore=nearest;best=color;}
+        }
+        // If the bright candidate pool is exhausted, still avoid exact repeats.
+        if(bestScore==0)for(quint32 rgb=1;rgb<=0xffffff;++rgb) {
+            QColor color=QColor::fromRgb((rgb*0x9e3779u)&0xffffff);
+            if(qMax(color.red(),qMax(color.green(),color.blue()))<170||used.contains(color))continue;
+            best=color;break;
+        }
+        RGBA8 color;color.r=best.red();color.g=best.green();color.b=best.blue();color.a=255;
+        listNeuronTree[row].color=color;used<<best;
+    }
+    if(auto view=qobject_cast<V3dR_GLWidget*>(static_cast<QWidget*>(widget))){view->updateTool();view->update();}
+}
+
 void Renderer_gl1::loadNeuronTree(const QString& filename)
 {
     bool contained = false;

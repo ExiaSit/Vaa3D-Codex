@@ -870,6 +870,7 @@ public:
 	void drawDynamicNeuronTube(float rb, float rt, float length);
 	void saveNeuronTree(int kk, const QString& filename); //kk is the cur number of the tree to save
 	void loadNeuronTree(const QString& filename);
+    void assignDistinctNeuronColors(int firstNew);
 	void updateNeuronBoundingBox();
 	virtual void drawNeuronTree(int i);
 	virtual void drawNeuronTreeList();
@@ -1009,4 +1010,3 @@ void _copyYzxFromZyx(RGBA8* rgbaYzx, RGBA8* rgbaZyx, int imageX, int imageY, int
 
 
 #endif
-
