@@ -16,11 +16,11 @@
 ## 获取与构建
 
 ```bash
-git clone --recurse-submodules git@github.com:ExiaSit/Vaa3D-Codex.git
+git clone --recurse-submodules https://github.com/ExiaSit/Vaa3D-Codex.git
 cd Vaa3D-Codex
 ```
 
-私有仓库需要相应 GitHub 访问权限。当前维护版在 Linux、Qt 5.15.2 下构建与验证；依赖准备和运行方法见 [LOCAL_BUILD.md](LOCAL_BUILD.md)。准备好依赖后执行：
+仓库已公开，可直接通过 HTTPS 浏览、下载或克隆源码，无需 GitHub 登录。当前维护版在 Linux、Qt 5.15.2 下构建与验证；依赖准备和运行方法见 [LOCAL_BUILD.md](LOCAL_BUILD.md)。准备好依赖后执行：
 
 ```bash
 ./build-debug-local.sh

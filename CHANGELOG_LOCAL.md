@@ -12,6 +12,14 @@
 
 首次补记时间：2026-10-08 21:22:07 +08:00。
 
+## local-049 — 将 GitHub 维护仓库改为公开
+
+- 更新时间：2026-10-30 13:13:32 +0800（Asia/Shanghai）。
+- 按用户要求及公开操作前的明确确认，将 `ExiaSit/Vaa3D-Codex` 从 private 改为 public；源码、文档及已有提交历史现可公开浏览与下载。默认分支继续为 master，既有提交和标签不重写；临时 `Vaa3D-Codex-Setup` 仓库未变更。
+- README.md 改用无需登录的 HTTPS 克隆命令，移除私有仓库访问说明；LOCAL_BUILD.md 同步当前公开状态与此次授权依据，历史 local-048 的私有创建记录保留为当时事实。本次文档及 local-049 标签同步到 codex 维护远端。
+- 验证：GitHub 设置页面显示“This repository is currently public”，连接器返回 visibility=public、default_branch=master；文档链接检查、差异审阅及 git diff --check 通过。仅修改远端可见性与说明文档，没有软件逻辑变更，未重新构建或运行 GUI 测试。
+- 范围：公开现有维护仓库，未新增上传用户图像、标注、实验目录、缓存或编译产物；本地未跟踪内容保留。公开不授予其他用户直接向仓库写入的权限，原许可证继续适用。
+
 ## local-048 — 创建 GitHub 私有 Codex 自用维护仓库
 
 - 更新时间：2026-10-30 12:35:50 +0800（Asia/Shanghai）。
