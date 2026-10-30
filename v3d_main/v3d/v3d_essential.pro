@@ -439,6 +439,7 @@ RESOURCES += ../3drenderer/3drenderer.qrc
 QT += opengl
 QT += network
 QT += xml svg
+greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
 LIBS += -L../jba/c++
 

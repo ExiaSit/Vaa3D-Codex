@@ -12,6 +12,14 @@
 
 首次补记时间：2026-10-08 21:22:07 +08:00。
 
+## local-053 — 补充 Qt Widgets 构建模块并继续 Qt6 编译探测
+
+- 更新时间：2026-10-30 14:49:51 +0800（Asia/Shanghai）。
+- v3d_main/v3d/v3d_essential.pro 增加 `greaterThan(QT_MAJOR_VERSION, 4): QT += widgets`，为 Qt5/Qt6 显式引入 Widgets；保留 Qt4 构建条件。
+- 在独立 mac-configure 目录以本机 qmake6 重新生成并编译 main.o，确认编译参数出现 QT_WIDGETS_LIB 和 QtWidgets.framework/Headers，原 QFileDialog 缺失错误消失。随后出现 QProgressDialog/QColorDialog 未声明和 tiffio.h 缺失。
+- 进一步仅在探测命令中加入既有 USE_Qt5 宏与本机 libtiff include 路径，错误推进到 QColorDialog::getRgba 不存在、QOpenGLWidget 缺失；再临时加入 QT+=openglwidgets，推进到 QColorDialog::getRgba 不存在与 QGLWidget 头文件缺失。三轮 main.o 编译均退出 2，未完成应用构建。临时参数未写入共享配置，不把本机绝对依赖路径入库。
+- 日志位于工作目录外 work/qa-20261030/mac-configure 的 configure-widgets*.log 与 build-widgets*.log；本轮未进行 Qt6 API 源码迁移，没有替换原应用。git diff --check 通过；仅本地提交和 local-053 标签，不推送远端。
+
 ## local-052 — 新增功能扩展回归与平台验收边界
 
 - 更新时间：2026-10-30 14:34:27 +0800（Asia/Shanghai）。
