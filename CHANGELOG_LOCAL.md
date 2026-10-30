@@ -12,6 +12,14 @@
 
 首次补记时间：2026-10-08 21:22:07 +08:00。
 
+## local-051 — 记录四分支整理完成与三系统核心 CI 结果
+
+- 更新时间：2026-10-30 14:13:46 +0800（Asia/Shanghai）。
+- 已将 local-050/00ef10022ee203a3ee32128ca5fde38a92122f19 先推送 mac，三系统核心 CI 成功后快进 master，并建立 ubuntu/windows；远端引用核验确认仅这四个活动分支，代码基线一致。
+- 29 个旧分支的归档标签已逐一比对原 SHA；删除了除 master 以外的 28 个旧活动分支，映射见 doc/platform-branch-archive-20261030.json。Mac Qt6 source-only 归档标签同样保留。没有重写旧版本标签，没有向官方 origin 推送。
+- GitHub Actions 运行 https://github.com/ExiaSit/Vaa3D-Codex/actions/runs/41011459495 的 macOS、Windows、Ubuntu 三个核心测试任务均为 success。完整 Ubuntu 构建及三项 GUI 验证见 local-050；不能将核心 CI 当作 Mac/Windows 完整应用验证。
+- 本次仅补充完成记录，git diff --check 通过，不修改程序逻辑，不重复构建。此文档提交先推送 mac，再快进其余三个分支。原 Mac qt6-build 工作区、原应用、Ubuntu 日常工作区及未跟踪数据未因分支整理而切换或覆盖。
+
 ## local-050 — 四平台分支初始化与 Mac 通用修复整合
 
 - 更新时间：2026-10-30 13:58:47 +0800（Asia/Shanghai）。
