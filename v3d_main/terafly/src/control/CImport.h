@@ -34,6 +34,7 @@
 #include <QtCore>
 #endif
 #include <QThread>
+#include <QtGlobal>
 #include <string>
 #include <vector>
 #include "VirtualVolume.h"
@@ -205,6 +206,13 @@ class terafly::CImport : public QThread
             vmapZDimMax = CSettings::instance()->getVOIdimD();
             vmapTDimMax = CSettings::instance()->getVOIdimT();
             vmapCDimMax = 3;
+            // Keep the startup overview small; the launcher loads the full
+            // highest-resolution volume only after the viewer is ready.
+            if (!qgetenv("VAA3D_TERAFLY_START_FULL_VOLUME").isEmpty()) {
+                vmapYDimMax = 256;
+                vmapXDimMax = 256;
+                vmapZDimMax = 256;
+            }
         }
 
         // returns true if

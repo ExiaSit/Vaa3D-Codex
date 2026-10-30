@@ -28,6 +28,7 @@ RC_FILE = v3d_picture.rc
 RC_ICONS = :/v3dIcon128.ico
 
 macx{
+    QMAKE_INFO_PLIST = $$PWD/Info-local-macos.plist
     DEFINES += MACOS_SYSTEM
 
     LIBS += -L../common_lib/lib_mac64 -lv3dtiff -lv3dnewmat -lmylib -lteem  -lbz2 -lhdf5 -lszip

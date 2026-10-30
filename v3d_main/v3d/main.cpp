@@ -55,12 +55,15 @@ Last update: 2011-08-25: remove some uncalled old code, and adjust the inconsist
 #include <QSplashScreen>
 
 #include <QApplication>
+#include "../../local_tests/neuron_render_benchmark.h"
 #include <QFile>
+#include <QTimer>
 
 #include <iostream>
 #include <vector>
 
 #include "mainwindow.h"
+#include "../terafly/src/presentation/PMain.h"
 #include "v3d_application.h"
 #include "customdebug.h"
 
@@ -194,6 +197,18 @@ int main(int argc, char **argv)
                 }
             }
 
+            // A local tracing launcher may request a TeraFly volume at startup.
+            // Keep the normal Vaa3D command-line parser and menu behavior intact.
+            const QByteArray teraflyStartRes = qgetenv("VAA3D_TERAFLY_START_RES");
+            if (!teraflyStartRes.isEmpty() && !parser.i_v3d.hideV3D)
+            {
+                QTimer::singleShot(0, mainWin, [mainWin, teraflyStartRes]() {
+                    mainWin->func_open_terafly();
+                    if (terafly::PMain::isInstantiated())
+                        terafly::PMain::getInstance()->openImage(QString::fromUtf8(teraflyStartRes).toStdString());
+                });
+            }
+
 
 			// plugin module
 			if(parser.i_v3d.pluginname)
@@ -318,7 +333,10 @@ int main(int argc, char **argv)
 			try
 			{
                 if(!parser.i_v3d.hideV3D)
+                {
+                    scheduleNeuronRenderBenchmark();
                     return app->exec();
+                }
                 else
                     return false;
 			}

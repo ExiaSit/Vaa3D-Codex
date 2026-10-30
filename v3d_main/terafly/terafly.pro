@@ -303,3 +303,5 @@ SOURCES += ../terafly/src/presentation/QPrefixSuffixLineEdit.cpp
 SOURCES += ../terafly/src/control/QUndoMarkerCreate.cpp
 SOURCES += ../terafly/src/control/QUndoMarkerDelete.cpp
 SOURCES += ../terafly/src/control/QUndoMarkerDeleteROI.cpp
+
+HEADERS += ../terafly/src/presentation/PMultiView.h

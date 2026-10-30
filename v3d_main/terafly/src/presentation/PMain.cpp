@@ -27,6 +27,8 @@
 ********************************************************************************************************************************************************************************************/
 
 #include "PMain.h"
+#include "PMultiView.h"
+#include "basic_surf_objs.h"
 #include "PDialogImport.h"
 #include "PAbout.h"
 #include "PLog.h"
@@ -48,6 +50,8 @@
 #include "TimeSeries.h"
 #include "BDVVolume.h"
 #include <QtGlobal>
+#include <QTimer>
+#include <QSignalBlocker>
 #include <cmath>
 #include "VolumeConverter.h"
 #include "TiledMCVolume.h"
@@ -179,6 +183,42 @@ PMain::PMain(V3DPluginCallback2 *callback, QWidget *parent) : QWidget(parent)
     menuBar = new QMenuBar(0);
     /* --------------------------- "File" menu --------------------------- */
     fileMenu = menuBar->addMenu("File");
+    QAction* multiViewAction = menuBar->addMenu(QString::fromUtf8("多视角分割"))->addAction(QString::fromUtf8("打开 SAM2 面板"));
+    connect(multiViewAction, &QAction::triggered, this, [this]() {
+        static QPointer<PMultiView> panel;
+        if (panel) { panel->show(); panel->raise(); panel->activateWindow(); return; }
+        panel = new PMultiView(this,
+            [](QString axis, int angle) {
+                if (CViewer::getCurrent() && CViewer::getCurrent()->getGLWidget()) {
+                    auto gl = CViewer::getCurrent()->getGLWidget();
+                    gl->makeCurrent();
+                    gl->doAbsoluteRot(axis == "x" ? angle : 0, axis == "y" ? angle : 0, 0);
+                }
+            },
+            [this](QString path) {
+                QByteArray name = path.toUtf8();
+                Image4DSimple* image = V3D_env->loadImage(name.data());
+                if (image) {
+                    if (image->getDatatype() == V3D_UINT8) {
+                        unsigned char* pixels = image->getRawData();
+                        for (V3DLONG i = 0; i < image->getTotalBytes(); ++i) pixels[i] = pixels[i] ? 255 : 0;
+                    }
+                    auto win = V3D_env->newImageWindow("SAM2 candidate — manual review required");
+                    V3D_env->setImage(win, image);
+                    V3D_env->updateImageWindow(win);
+                    V3D_env->open3DWindow(win);
+                    if (QFileInfo(path).fileName() == "mask.tif") {
+                        QString swc = QFileInfo(path).absolutePath() + "/candidate.swc";
+                        if (QFileInfo::exists(swc) && QFileInfo(swc).size() <= 50*1024*1024) { NeuronTree tree = readSWC_file(swc); V3D_env->setSWC(win, tree); }
+                        else if (QFileInfo::exists(swc)) QMessageBox::information(this, "SAM2", "分割体已打开。此 SWC 超过 50 MB，未自动叠加，以免阻塞界面；文件仍保存在任务目录，可单独载入。失败样例不应用作标注结果。");
+                    }
+                }
+            });
+        panel->show();
+    });
+    if (qEnvironmentVariableIsSet("VAA3D_MULTIVIEW_OPEN"))
+        QTimer::singleShot(0, this, [multiViewAction]() { multiViewAction->trigger(); });
+
     openTeraFlyVolumeAction = new QAction(QIcon(":/icons/open_image_terafly.png"), "Open TeraFly Image (3-5D)", this);
     openHDF5VolumeAction = new QAction(QIcon(":/icons/open_image_hdf5.png"),    "Open HDF5 Image (3-4D)", this);
     openUnstitchedImageAction = new QAction(QIcon(":/icons/open_image_unconverted.png"),    "Open Unstitched image (3-4D)", this);
@@ -1571,7 +1611,8 @@ void PMain::openImage(std::string path /*= ""*/)
 
 
         // start import
-        CImport::instance()->setRegenerateVolumeMap(regenVMap_cAction->isChecked());
+        CImport::instance()->setRegenerateVolumeMap(regenVMap_cAction->isChecked() ||
+            !qgetenv("VAA3D_TERAFLY_START_FULL_VOLUME").isEmpty());
         CImport::instance()->setPath(path);
         CImport::instance()->updateMaxDims();
         CImport::instance()->start();
@@ -2333,6 +2374,36 @@ void PMain::importDone(RuntimeException *ex, qint64 elapsed_time)
         /**/tf::debug(tf::LEV3, "showing CViewer", __itm__current__function__);
         new_win->show();
         new_win->_isReady = true;
+
+        // The local tracing launcher opens the selected volume at full detail.
+        // A queued switch lets the overview viewer finish initializing first.
+        qWarning("TeraFly startup: imported %d resolutions, requested=%d",
+                 CImport::instance()->getResolutions(), !qgetenv("VAA3D_TERAFLY_START_RES").isEmpty());
+        if (!qgetenv("VAA3D_TERAFLY_START_RES").isEmpty() && CImport::instance()->getResolutions() > 1)
+        {
+            const int highestResolution = CImport::instance()->getResolutions() - 1;
+            QTimer::singleShot(0, this, [this, highestResolution]() {
+                if (!qgetenv("VAA3D_TERAFLY_START_FULL_VOLUME").isEmpty())
+                {
+                    VirtualVolume* fullVolume = CImport::instance()->getVolume(highestResolution);
+                    const QSignalBlocker xBlock(Hdim_sbox);
+                    const QSignalBlocker yBlock(Vdim_sbox);
+                    const QSignalBlocker zBlock(Ddim_sbox);
+                    Hdim_sbox->setMaximum(std::max(Hdim_sbox->maximum(), int(fullVolume->getDIM_H())));
+                    Vdim_sbox->setMaximum(std::max(Vdim_sbox->maximum(), int(fullVolume->getDIM_V())));
+                    Ddim_sbox->setMaximum(std::max(Ddim_sbox->maximum(), int(fullVolume->getDIM_D())));
+                    Hdim_sbox->setValue(fullVolume->getDIM_H());
+                    Vdim_sbox->setValue(fullVolume->getDIM_V());
+                    Ddim_sbox->setValue(fullVolume->getDIM_D());
+                    qWarning("TeraFly startup: full view %dx%dx%d",
+                             Hdim_sbox->value(), Vdim_sbox->value(), Ddim_sbox->value());
+                }
+                qWarning("TeraFly startup: switching from resolution %d to %d (enabled=%d, viewer=%p)",
+                         resolution_cbox->currentIndex(), highestResolution,
+                         resolution_cbox->isEnabled(), CViewer::getCurrent());
+                resolution_cbox->setCurrentIndex(highestResolution);
+            });
+        }
 
         helpBox->setText(HTbase);
 

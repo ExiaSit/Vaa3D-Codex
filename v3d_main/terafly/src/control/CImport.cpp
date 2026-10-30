@@ -360,7 +360,7 @@ void CImport::run()
         string volMapPath = QApplication::applicationDirPath().toStdString() + "/" + VMAP_BIN_FILE_NAME;
         cout<<volMapPath<<endl;
 
-        if(hasVolumeMapToBeRegenerated(volMapPath.c_str(), "0.9.42") || reimport || regenerateVMap)
+        if(reimport || regenerateVMap || hasVolumeMapToBeRegenerated(volMapPath.c_str(), "0.9.42"))
         {
             /**/tf::debug(tf::LEV_MAX, "Entering volume's map generation section", __itm__current__function__);
 
