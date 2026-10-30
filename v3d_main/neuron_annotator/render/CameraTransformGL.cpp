@@ -7,7 +7,11 @@
 
 #include "CameraTransformGL.h"
 
-#include <GL/gl.h>  //2020-2-10 RZC
+#ifdef __APPLE__
+#include <OpenGL/gl.h>
+#else
+#include <GL/gl.h>
+#endif
 
 
 CameraTransformGL::CameraTransformGL(const Na3DWidget& widget3d)

@@ -9,7 +9,11 @@
 #if defined(_WIN32) || defined(_WIN64)
 #include <windows.h> //2020-2-15 RZC
 #endif
-#include <GL/gl.h>  //2020-2-10 RZC
+#ifdef __APPLE__
+#include <OpenGL/gl.h>
+#else
+#include <GL/gl.h>
+#endif
 
 
 namespace jfrc {

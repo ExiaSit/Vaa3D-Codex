@@ -12,6 +12,14 @@
 
 首次补记时间：2026-10-08 21:22:07 +08:00。
 
+## local-054 — Mac Qt5 原生构建与共享源码运行试验
+
+- 更新时间：2026-10-30 16:18:25 +0800（Asia/Shanghai）。
+- 在本机安装并使用独立 Qt 5.15.19，保留默认 Qt6 命令与原应用。初始化指定 TeraStitcher 子模块，复用已准备的 arm64 原生库和 Boost。三处 OpenGL 头文件增加 Apple 条件，新增 scripts/build-macos-qt5.sh 和详细构建/验收文档。
+- 验证：旧接口检查程序、完整 arm64 应用编译链接、脚本增量复建均成功；实际 GUI 加载 TIFF/SWC 并旋转；SWC_NAVIGATION_GUI_PASS 和 Y_FLIP_GUI_PASS。SWC 配色原生弹窗测试超时，Qt 自带弹窗模式复测通过；未把原生配色计为通过。git diff --check 与脚本语法检查通过。
+- 边界：不是所有功能验收，未验证 TeraFly 真数据和全部插件；未验证旧 macOS，仍有 SDK/最低系统版本警告。Homebrew 的全局链接步骤因冲突失败，保留独立 Qt5 调用；默认 qmake/qmake6 仍为 6.11.2。brotli 升级至 1.2.1。详见 platforms/macos/BUILD_QT5.md。
+- 仅本地 mac 分支提交和 local-054 标签，不推送、不覆盖原 Qt6 app、不改用户图像/SWC。
+
 ## local-053 — 补充 Qt Widgets 构建模块并继续 Qt6 编译探测
 
 - 更新时间：2026-10-30 14:49:51 +0800（Asia/Shanghai）。

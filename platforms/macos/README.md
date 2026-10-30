@@ -1,5 +1,11 @@
 # macOS
 
+## 最新验证（local-054）
+
+本机 Qt 5.15.19 已完整构建并启动共享源码，TIFF/SWC 叠加、旋转、拖拽与 Y 翻转回归通过；配色回归仅在 Qt 自带弹窗模式通过，原生弹窗尚未验收。详见 [Qt5 构建试验](BUILD_QT5.md)，构建入口为 `scripts/build-macos-qt5.sh`。这不是全功能发布验收；Qt6 迁移仍未完成。
+
+## 首次整合时的状态（local-050）
+
 - 分支：`mac`。共享源码从 Ubuntu Qt 5 主线整合；本目录的 Info.plist 由 `v3d_essential.pro` 的 `macx` 条件引用，其他平台不使用。
 - TIFF：注册 `public.tiff` 与 tif/tiff 扩展名，Alternate 角色，不自动修改用户默认应用。构建安装后可运行 macOS 的 `lsregister -f /absolute/path/Vaa3D.app` 刷新打开方式列表。
 - 构建边界：这台 Mac 原先运行的是 QT6_NEW 基础上的独立 Qt 6 版本。此次共享代码整合没有完成整套应用的 Qt 5/6 统一和 macOS 完整构建验收；不能把 Linux 构建成功或 macOS 核心测试通过写成 Mac 应用发布成功。
