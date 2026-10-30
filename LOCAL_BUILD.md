@@ -1,5 +1,22 @@
 # 本机 Debug 构建
 
+## GitHub 自用仓库
+
+私有维护仓库：[ExiaSit/Vaa3D-Codex](https://github.com/ExiaSit/Vaa3D-Codex)。本机 `origin` 保留为上游 `https://github.com/Vaa3D/v3d_external.git`，新增 `codex` 远端为 `git@github.com:ExiaSit/Vaa3D-Codex.git`；维护分支沿用 `master`。2026-10-30 用户明确授权创建该仓库并推送当时已有的维护提交与 `local-*` 标签。本次授权不表示以后每次本地更新都自动推送，后续继续遵守 AGENTS.md 的本地提交要求及用户当次指示。
+
+换机器获取源码与子模块可使用 README.md 中的 `git clone --recurse-submodules` 命令；远端配置不属于 Git 文件内容，新克隆默认只有指向该私有仓库的 `origin`。需要复制本机远端命名时，执行：
+
+```bash
+git remote rename origin codex
+git remote add origin https://github.com/Vaa3D/v3d_external.git
+```
+
+本轮没有更换本地分支或默认 push 目标，没有提交用户数据、实验目录、临时日志或编译产物。私有仓库保留上游源码和历史中已有的文件。
+
+首次从浅克隆推送空仓库时，GitHub 因缺少上游历史对象而拒绝解包；本机已通过上游 SSH 地址补齐历史，并执行 Git 连通性检查。最终维护仓库采用 GitHub 服务端导入上游后再接收本地维护提交的方式建立。首次创建但未收到任何提交的空仓库临时改名为 `ExiaSit/Vaa3D-Codex-Setup`，保持私有并归档，不用作维护远端；没有删除该仓库或任何用户数据。
+
+## 当前编译环境
+
 源码：`https://github.com/Vaa3D/v3d_external.git`，`master` 分支，提交 `215c7803a3aeb7c7a5772f3db2380ee6737d4edc`。TeraStitcher 子模块已初始化。
 
 本次使用 Anaconda 的 Qt 5.15.2 和 GNU C++11；编译模式为 `CONFIG+=debug CONFIG-=release`。本机缺少的 OpenGL/X11 开发包提取在 `.local-deps/sysroot`，没有安装到系统目录。首次编译所需的 Boost、TIFF、MYLIB 和 newmat 库已经在源码树内准备好。
