@@ -640,3 +640,8 @@ v3d_main/v3d/release/autosave/annotations_stamp_2019_05_20_10_42.ano.eswc
 # Local runtime data: keep on disk, outside software version history
 /v3d_main/v3d/autosave/
 /vmap.bin
+
+# Cross-platform local build/cache artifacts
+/build/
+__pycache__/
+*.pyc

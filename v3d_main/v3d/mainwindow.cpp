@@ -3256,7 +3256,7 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
     {
         QFileOpenEvent *openEvent = static_cast<QFileOpenEvent*>(event);
         QString fileName = openEvent->file();
-        // v3d_msg("file open event: " + fileName);
+        // qDebug() << "file open event:" << fileName;
         loadV3DFile(fileName, true, false); // loadV3DFile func changed to 3 args. YuY Nov. 18, 2010
         return true; // consume event
     }

@@ -89,6 +89,9 @@
 # 150510: by PHC, Qt5 with success
 # ######################################################################
 
+# Platform metadata is selected at build time, never from a developer's home path.
+macx: QMAKE_INFO_PLIST = $$PWD/../../platforms/macos/Info.plist
+
 TEMPLATE = app
 TARGET +=
 DEPENDPATH += . v3d

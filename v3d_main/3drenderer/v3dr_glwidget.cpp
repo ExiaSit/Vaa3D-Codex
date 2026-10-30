@@ -613,6 +613,11 @@ void V3dR_GLWidget::focusInEvent(QFocusEvent*)
 }
 void V3dR_GLWidget::focusOutEvent(QFocusEvent*)
 {
+    if (property("vaa3dNeuronDragPreview").toBool())
+    {
+        setProperty("vaa3dNeuronDragPreview", false);
+        POST_updateGL();
+    }
 	//qDebug("V3dR_GLWidget::focusOutEvent");
 	//if (_mouse_in_view)
 	//	_stillpaint_disable = true;
@@ -724,6 +729,12 @@ void V3dR_GLWidget::mouseReleaseEvent(QMouseEvent *event)
 
 	mouse_held = 0;
 
+    if (property("vaa3dNeuronDragPreview").toBool())
+    {
+        setProperty("vaa3dNeuronDragPreview", false);
+        POST_updateGL(); // Restore tubes even when texture streaming is disabled.
+    }
+
 	if (event->button()==Qt::RightButton && renderer) //right-drag end
     {
         (renderer->movePen(event->x(), event->y(), false)); //create curve or nothing
@@ -756,6 +767,8 @@ void V3dR_GLWidget::mouseMoveEvent(QMouseEvent *event)
 
 	if (event->buttons() & Qt::LeftButton)
 	{
+        // Avoid regenerating a GLU tube mesh for every SWC edge while navigating.
+        if (dx || dy) setProperty("vaa3dNeuronDragPreview", true);
 		//qDebug()<<"MoveEvent LeftButton";
 		int xRotStep = MOUSE_ROT(dy, MIN(viewW,viewH));
 		int yRotStep = MOUSE_ROT(dx, MIN(viewW,viewH));
@@ -3022,6 +3035,8 @@ void V3dR_GLWidget::setZCut1(int s)
 
 void V3dR_GLWidget::setXYZSurfure(bool b)
 {
+    // Cut sliders may emit before the 3D window has finished construction.
+    if (!renderer || !_idep || !_idep->window3D) return;
     if(b)
     {
         Renderer_gl2* curr_renderer = (Renderer_gl2*)(getRenderer());

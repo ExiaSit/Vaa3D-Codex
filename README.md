@@ -2,6 +2,10 @@
 
 这是 **ExiaSit** 使用 Codex 维护的个人 Vaa3D 版本，基于 [Vaa3D/v3d_external](https://github.com/Vaa3D/v3d_external)，保留上游源码历史与许可证。此仓库不是 Vaa3D 官方发行版。
 
+## 平台分支
+
+使用 `master`、`windows`、`mac`、`ubuntu` 四个分支；修改先进入对应平台分支，验证后合入主线。见 [四分支维护约定](PLATFORMS.md)。目前完整应用以 Ubuntu Qt 5 构建为已验证基础；Mac 原 Qt 6 版本保留为源码归档，不等于共享主线已通过 macOS/Windows GUI 验收。
+
 ## 本地新增与修复
 
 - SWC/ESWC 导入、批量自动配色、Object Manager 各窗口独立管理、逐对象颜色与 Y 翻转显示。

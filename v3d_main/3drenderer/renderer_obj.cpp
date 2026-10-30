@@ -2515,6 +2515,10 @@ void Renderer_gl1::drawNeuronTree(int index)
 //    v3d_msg(QString("neuron mode %1").arg(cur_linemode), 0);
 
     int cur_lineType = (cur_linemode==0 || cur_linemode==1) ? cur_linemode : lineType;
+    // Navigation preview only; preserve per-object modes, colors and picking.
+    if (!b_selecting && widget &&
+        ((QWidget*)widget)->property("vaa3dNeuronDragPreview").toBool())
+        cur_lineType = 1;
 
 	NeuronSWC S0, S1;
      // for neuron color: same as neuron label color (ZJL)
@@ -2822,6 +2826,10 @@ void Renderer_gl1::drawNeuronTreeList()
             glDisable(GL_LIGHTING);
         }
     }
+
+    if (!b_selecting && widget &&
+        ((QWidget*)widget)->property("vaa3dNeuronDragPreview").toBool())
+        glDisable(GL_LIGHTING);
 
     glFrontFace(GL_CW);
 	glCullFace(GL_BACK);

@@ -12,6 +12,16 @@
 
 首次补记时间：2026-10-08 21:22:07 +08:00。
 
+## local-050 — 四平台分支初始化与 Mac 通用修复整合
+
+- 更新时间：2026-10-30 13:58:47 +0800（Asia/Shanghai）。
+- 以远端 master/local-049/b0dc3df0 为基础，在 mac 工作分支移植 Mac 本地的 SWC 左键拖拽线框预览、松手/失焦恢复和 3D 初始化裁剪空指针保护；保留 Ubuntu 主线的配色、Y 翻转、Mask、文件组及重采样代码。QFileOpenEvent 改为日志输出，不弹阻塞调试框。
+- macOS TIFF 文档类型通过 platforms/macos/Info.plist 和 macx 构建条件隔离；应用名和部署版本使用 qmake 变量。补充三个平台的维护说明、四分支协作约定、核心测试 CMake 入口及 GitHub Actions 三系统核心测试矩阵。未把用户文件或二进制备份带入主线。
+- 验证：Mac AppleClang Release 下 maximum_z_projection、rescale_one_micron 两项 CTest 通过；Ubuntu ubuntu-MZ73-LM1-000 独立目录 /tmp/vaa3d-platform-20261030-rU6KQe 下 Qt 5 Debug 完整构建通过；独立 Xvfb、临时配置、软件 OpenGL 下新 SWC_NAVIGATION_GUI_PASS 与既有 SWC_COLOR_GUI_PASS、Y_FLIP_GUI_PASS 全部通过。检查拖拽恢复、不改节点/颜色/源文件、配色与像素、对象独立性。git diff --check 通过。
+- 远端整理计划（已获用户明确授权）：先推送 mac，再将验证过的同一提交快进到 master，并建立 ubuntu/windows；归档标签逐一核验后删除其余活动分支。29 个旧分支的 SHA/归档标签映射在 doc/platform-branch-archive-20261030.json，现有 local-* 标签保持。实际远端完成情况以后续引用核验为准，不把计划写成已经完成。
+- Mac 旧 Qt6 本地修改另建 source-only 归档 archive/mac-qt6-local-20261030（e68b69a7）；不发布旧二进制备份提交历史。原应用和源码目录保持。新 mac/windows 分支初始共享 Qt5主线，尚未验证完整应用在两平台构建；Mac 原 TeraFly 启动/SAM2 本机工作流仅归档，未冒充跨平台可用功能。未声称 Qt5/Qt6 迁移完成。
+- GitHub Actions 工作流已新增，提交时尚未执行远端 CI，不能据此宣称三个系统应用已验收。Linux 图形测试存在既有软件 GL/XCB 诊断但三个进程均正常通过。Ubuntu 日常仓库仍为 b0dc3df0，未跟踪文件清单与测试前相同，未关闭用户窗口。
+
 ## local-049 — 将 GitHub 维护仓库改为公开
 
 - 更新时间：2026-10-30 13:13:32 +0800（Asia/Shanghai）。

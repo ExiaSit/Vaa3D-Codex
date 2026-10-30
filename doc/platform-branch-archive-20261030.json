@@ -1,0 +1,150 @@
+{
+  "remote": "git@github.com:ExiaSit/Vaa3D-Codex.git",
+  "heads": [
+    {
+      "branch": "Dev_collaborate_mode_BuildDebug",
+      "commit": "84be1fbfa109d2dcdd5f82efe7bdbc86b2f8deb8",
+      "archive_tag": "archive/pre-platform-20261030/01-Dev_collaborate_mode_BuildDebug"
+    },
+    {
+      "branch": "MorphologyFeatures",
+      "commit": "ed59bd0540554edfe7e129405f8e62368cfd20fa",
+      "archive_tag": "archive/pre-platform-20261030/02-MorphologyFeatures"
+    },
+    {
+      "branch": "QT6_NEW",
+      "commit": "3cea413d41d9929221a0cedfc9ce960c0939089f",
+      "archive_tag": "archive/pre-platform-20261030/03-QT6_NEW"
+    },
+    {
+      "branch": "Qt5_Mac10_15",
+      "commit": "e8dd784180927d8bd92932931244207ac774c02b",
+      "archive_tag": "archive/pre-platform-20261030/04-Qt5_Mac10_15"
+    },
+    {
+      "branch": "Qt6",
+      "commit": "cc11b89686720c1dccb45d56bf71401a9b3b587e",
+      "archive_tag": "archive/pre-platform-20261030/05-Qt6"
+    },
+    {
+      "branch": "Qt6_Neuverse",
+      "commit": "64dbb7963e6d535b03053e0b38dcb97794b5ba07",
+      "archive_tag": "archive/pre-platform-20261030/06-Qt6_Neuverse"
+    },
+    {
+      "branch": "Qt6_Win10",
+      "commit": "39dc7cec2680beb094edd72c1eaf103100a48ad4",
+      "archive_tag": "archive/pre-platform-20261030/07-Qt6_Win10"
+    },
+    {
+      "branch": "VROnUbuntu",
+      "commit": "0cdfc400997b387d671e25e135f975aa013bf0cb",
+      "archive_tag": "archive/pre-platform-20261030/08-VROnUbuntu"
+    },
+    {
+      "branch": "VRonUbuntu",
+      "commit": "4567d896a745f1bce23aa28d162462a05f3f7378",
+      "archive_tag": "archive/pre-platform-20261030/09-VRonUbuntu"
+    },
+    {
+      "branch": "Vaa3D_Migration_SafePoint1",
+      "commit": "34b55207e4596f43d6c549954a490a7775bf662a",
+      "archive_tag": "archive/pre-platform-20261030/10-Vaa3D_Migration_SafePoint1"
+    },
+    {
+      "branch": "WIP",
+      "commit": "5b3f28b9aaf0f009619f3e4226f5d9992b531d09",
+      "archive_tag": "archive/pre-platform-20261030/11-WIP"
+    },
+    {
+      "branch": "before_Submodule_Merged_Mozak",
+      "commit": "6145df6761b8fcb214c36a1a4f9bf575251cbb39",
+      "archive_tag": "archive/pre-platform-20261030/12-before_Submodule_Merged_Mozak"
+    },
+    {
+      "branch": "collaborate-mode",
+      "commit": "5405addd44bba9867eaa7037d6e985cc9ed311e7",
+      "archive_tag": "archive/pre-platform-20261030/13-collaborate-mode"
+    },
+    {
+      "branch": "collaborate_mode",
+      "commit": "d135ca134eda5dba48eb28ef2f019bccdf56ba82",
+      "archive_tag": "archive/pre-platform-20261030/14-collaborate_mode"
+    },
+    {
+      "branch": "collaborate_mode_bci",
+      "commit": "930c89bfd0cc1932d44b2b3dd2cf51a1736a9fe7",
+      "archive_tag": "archive/pre-platform-20261030/15-collaborate_mode_bci"
+    },
+    {
+      "branch": "collaborate_mode_qt6",
+      "commit": "9957a05e5637956c2075d08ce1e9015ab767811f",
+      "archive_tag": "archive/pre-platform-20261030/16-collaborate_mode_qt6"
+    },
+    {
+      "branch": "cori",
+      "commit": "637fe590a403bff1bb60ddac6c6914d13b3bf80b",
+      "archive_tag": "archive/pre-platform-20261030/17-cori"
+    },
+    {
+      "branch": "cropforhl",
+      "commit": "3295cffbfd3fe428a6b37289eacd318360c448f7",
+      "archive_tag": "archive/pre-platform-20261030/18-cropforhl"
+    },
+    {
+      "branch": "dev_zhy",
+      "commit": "2d357969fcd97769ddd11a6c17985e3b264334d4",
+      "archive_tag": "archive/pre-platform-20261030/19-dev_zhy"
+    },
+    {
+      "branch": "feature/gxq/tracing",
+      "commit": "82e0734b3defb8ab8652910f9833788ae5fa8f3a",
+      "archive_tag": "archive/pre-platform-20261030/20-feature/gxq/tracing"
+    },
+    {
+      "branch": "master",
+      "commit": "b0dc3df06fbe478f57b1ed585d1af663b0fcecaa",
+      "archive_tag": "archive/pre-platform-20261030/21-master"
+    },
+    {
+      "branch": "mingw_vaa3d",
+      "commit": "ef250db93f4052e7f339cb7ca6ec3863c2f47944",
+      "archive_tag": "archive/pre-platform-20261030/22-mingw_vaa3d"
+    },
+    {
+      "branch": "mozak_test_merge_current_master",
+      "commit": "96ebb5574292a59170a8514afb71d859041521d9",
+      "archive_tag": "archive/pre-platform-20261030/23-mozak_test_merge_current_master"
+    },
+    {
+      "branch": "mozak_vaa3d_updates",
+      "commit": "14cbf10aa6af15ee989f770d1337562e2d83e886",
+      "archive_tag": "archive/pre-platform-20261030/24-mozak_vaa3d_updates"
+    },
+    {
+      "branch": "new_qt6",
+      "commit": "afee9177dfcc57fc22dce36cb5e9554df62fe454",
+      "archive_tag": "archive/pre-platform-20261030/25-new_qt6"
+    },
+    {
+      "branch": "qt6_ljs_dlc",
+      "commit": "7b573ee940cb979494b4af6e4652506702060d8c",
+      "archive_tag": "archive/pre-platform-20261030/26-qt6_ljs_dlc"
+    },
+    {
+      "branch": "vrrendertest",
+      "commit": "1b1dcad25944688e7a8a704485fd025cd8d803f9",
+      "archive_tag": "archive/pre-platform-20261030/27-vrrendertest"
+    },
+    {
+      "branch": "win_Qt4_temp",
+      "commit": "c4b2a821ac72414cbddbf36dddd2edc2c5e42b90",
+      "archive_tag": "archive/pre-platform-20261030/28-win_Qt4_temp"
+    },
+    {
+      "branch": "win_VS2017_Qt5_attempt",
+      "commit": "3d5c92fe276a92ec1a370f80ab7798235c737f32",
+      "archive_tag": "archive/pre-platform-20261030/29-win_VS2017_Qt5_attempt"
+    }
+  ]
+}
