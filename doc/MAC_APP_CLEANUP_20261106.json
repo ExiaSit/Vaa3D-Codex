@@ -1,0 +1,34 @@
+{
+  "time": "2026-11-06T15:55:06.240553+08:00",
+  "kept": "/Users/pzy/Applications/Vaa3D-Qt5.app",
+  "moved": [
+    {
+      "original": "/Users/pzy/Documents/Codex/2026-10-07/for-neuron-tracing-editing-short-keys/work/build-vaa3d-qt6/Vaa3D-x.app",
+      "trash": "/Users/pzy/.Trash/Vaa3D-duplicates-20261106-155506/1-Vaa3D-x.app"
+    },
+    {
+      "original": "/Users/pzy/Documents/Codex/2026-10-09/vaa3d-swc-3d/releases/mac-local-056/Vaa3D.app",
+      "trash": "/Users/pzy/.Trash/Vaa3D-duplicates-20261106-155506/2-Vaa3D.app"
+    },
+    {
+      "original": "/Users/pzy/Documents/Codex/2026-10-09/vaa3d-swc-3d/releases/mac-local-056-r2/Vaa3D.app",
+      "trash": "/Users/pzy/.Trash/Vaa3D-duplicates-20261106-155506/3-Vaa3D.app"
+    },
+    {
+      "original": "/Users/pzy/Documents/Codex/2026-10-09/vaa3d-swc-3d/releases/mac-local-056-r2/extracted-check/Vaa3D.app",
+      "trash": "/Users/pzy/.Trash/Vaa3D-duplicates-20261106-155506/4-Vaa3D.app"
+    },
+    {
+      "original": "/Users/pzy/Documents/Codex/2026-10-09/vaa3d-swc-3d/releases/mac-local-055/Vaa3D.app",
+      "trash": "/Users/pzy/.Trash/Vaa3D-duplicates-20261106-155506/5-Vaa3D.app"
+    },
+    {
+      "original": "/Users/pzy/Documents/Codex/2026-10-09/vaa3d-swc-3d/work/qt5-macos-probe/Vaa3D-Qt5-probe.app",
+      "trash": "/Users/pzy/.Trash/Vaa3D-duplicates-20261106-155506/6-Vaa3D-Qt5-probe.app"
+    },
+    {
+      "original": "/Users/pzy/Documents/Codex/2026-10-09/vaa3d-swc-3d/outputs/Vaa3D-x-SWC-fix.app",
+      "trash": "/Users/pzy/.Trash/Vaa3D-duplicates-20261106-155506/7-Vaa3D-x-SWC-fix.app"
+    }
+  ]
+}
