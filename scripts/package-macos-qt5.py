@@ -27,7 +27,10 @@ if app.exists():
     raise SystemExit('Output already contains Vaa3D.app. Use a fresh output directory.')
 run('ditto', str(args.app.resolve()), str(app))
 qt = Path(run('brew', '--prefix', 'qt@5'))
-run(str(qt / 'bin/macdeployqt'), str(app), '-verbose=1')
+extra_binaries = sorted((app / 'Contents/MacOS/plugins').rglob('*.dylib'))
+run(str(qt / 'bin/macdeployqt'), str(app), '-verbose=1',
+    *['-executable=' + str(p) for p in extra_binaries])
+shutil.copy2(root / 'scripts/install-macos-update.sh', app / 'Contents/Resources/install-update.sh')
 # Qt5's deploy tool misses the modern WebP sharpyuv dependency.
 webp = Path(run('brew', '--prefix', 'webp'))
 shutil.copy2(webp / 'lib/libsharpyuv.0.dylib', app / 'Contents/Frameworks/libsharpyuv.0.dylib')
@@ -74,6 +77,7 @@ with plist_path.open('wb') as stream:
 licenses = app / 'Contents/Resources/Licenses'
 licenses.mkdir(parents=True, exist_ok=True)
 shutil.copy2(root / 'LICENSE', licenses / 'Vaa3D-LICENSE')
+shutil.copy2(root / 'plugins/neurontracing_vn2/LICENSE', licenses / 'vaa3d_tools-LICENSE')
 formulae = ['qt@5', 'libaec', 'freetype', 'glib', 'hdf5', 'gettext', 'jpeg-turbo',
            'xz', 'md4c', 'pcre2', 'libpng', 'teem', 'libtiff', 'webp', 'zstd']
 for formula in formulae:
@@ -83,12 +87,15 @@ for formula in formulae:
     for item in prefix.iterdir():
         if item.is_file() and re.match(r'LICENSE|COPYING|NOTICE|COPYRIGHT|AUTHORS', item.name, re.I):
             shutil.copy2(item, destination / item.name)
-    (destination / 'source.txt').write_text(run('brew', 'info', '--json=v2', formula) + '\n')
+    receipt = prefix / 'INSTALL_RECEIPT.json'
+    if receipt.exists():
+        shutil.copy2(receipt, destination / 'INSTALL_RECEIPT.json')
 run('codesign', '--force', '--deep', '--sign', '-', str(app))
 run('codesign', '--verify', '--deep', '--strict', str(app))
 manifest = {'version': args.version, 'packaging_source': run('git', '-C', str(root), 'rev-parse', 'HEAD'),
             'input_executable_sha256': hashlib.sha256((args.app / 'Contents/MacOS' / plist['CFBundleExecutable']).read_bytes()).hexdigest(),
             'architecture': 'arm64', 'minimum_macos': minimum, 'macho_files_checked': len(files),
+            'plugin_libraries': [str(p.relative_to(app)) for p in extra_binaries],
             'signature': 'ad-hoc, not notarized', 'external_non_system_dependencies': 0}
 (output / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
 print(json.dumps(manifest, indent=2))

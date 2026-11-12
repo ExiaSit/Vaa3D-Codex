@@ -492,3 +492,8 @@ INCLUDEPATH = $$unique(INCLUDEPATH)
 # LIBS = $$unique(LIBS) # @FIXED by Alessandro on 2015-05-11. Proven buggy on Qt 4.7.1/MacOSX10.10 since it removed some -framework from LIBS.
 # CONFIG = $$unique(CONFIG) # this only DOESN'T work on macx, very strange, by RZC 20080923
 message(CONFIG=$$CONFIG)
+
+macx {
+    SOURCES += $$PWD/mac_release_updater.cpp
+    HEADERS += $$PWD/mac_release_updater.h
+}

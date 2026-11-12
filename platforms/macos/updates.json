@@ -1,0 +1,15 @@
+[
+  {
+    "tag_name": "local-058",
+    "draft": false,
+    "prerelease": true,
+    "assets": [
+      {
+        "name": "Vaa3D-macOS26-arm64-local-058.zip",
+        "browser_download_url": "https://github.com/ExiaSit/Vaa3D-Codex/releases/download/local-058/Vaa3D-macOS26-arm64-local-058.zip",
+        "digest": "sha256:a9daf97ec0219ee6181d3d66d9aee44c7b09b42dd8f1c0a0e93ad52fec4651cc",
+        "size": 31263973
+      }
+    ]
+  }
+]

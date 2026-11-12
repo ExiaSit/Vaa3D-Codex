@@ -1,3 +1,6 @@
+#ifdef __APPLE__
+#include "mac_release_updater.h"
+#endif
 /*
  * Copyright (c)2006-2010  Hanchuan Peng (Janelia Farm, Howard Hughes Medical Institute).
  * All rights reserved.
@@ -762,6 +765,10 @@ void MainWindow::finishedLoadingWebImage(QUrl url, QString fileName, bool b_cach
 
 void MainWindow::checkForUpdates(bool b_verbose)
 {
+#ifdef Q_OS_MAC
+    if (b_verbose) checkMacReleaseUpdate(this);
+    return;
+#endif
     // In interactive mode, bring up a pre-dialog where user can set update frequency
     if (b_verbose) {
         v3d::CheckForUpdatesDialog dialog(this);

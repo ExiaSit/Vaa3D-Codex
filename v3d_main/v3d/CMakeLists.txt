@@ -38,6 +38,10 @@ set(V3D_SRCS
   v3d_actions.cpp
   )
 
+if(APPLE)
+  list(APPEND V3D_SRCS mac_release_updater.cpp)
+endif()
+
 set(ARTHUR_SRCS "")
 
 set(V3D_RCCS
